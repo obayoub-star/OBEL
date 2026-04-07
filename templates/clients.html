@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedicaTronic - Clients</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+    <!-- Top bar with tabs -->
+    <div class="bg-white border-bottom px-4 pt-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex gap-4 ms-1">
+                <a href="{{ url_for('clients_list') }}" class="text-decoration-none fw-bold heading" style="color:var(--text); border-bottom:2px solid var(--primary); padding-bottom:10px; font-size:0.88rem;">Clients</a>
+                <a href="#" class="text-decoration-none" style="color:var(--text-tertiary); padding-bottom:10px; font-size:0.88rem;">Fournisseurs</a>
+                <a href="#" class="text-decoration-none" style="color:var(--text-tertiary); padding-bottom:10px; font-size:0.88rem;">Contacts</a>
+                <a href="#" class="text-decoration-none" style="color:var(--text-tertiary); padding-bottom:10px; font-size:0.88rem;">Prospects</a>
+            </div>
+            <div class="d-flex gap-2 pe-1">
+                <a href="{{ url_for('new_client') }}" class="btn btn-info text-white fw-bold" style="font-size:0.84rem; border-radius:var(--radius-sm);">
+                    <i class="fas fa-plus me-1"></i> Ajouter client
+                </a>
+                <button class="btn btn-outline-info fw-bold" style="font-size:0.84rem; border-radius:var(--radius-sm);" data-bs-toggle="modal" data-bs-target="#importModal">
+                    <i class="fas fa-file-csv me-1"></i> Importer des clients
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-padding">
+
+        <!-- Search + filters -->
+        <div class="d-flex justify-content-between align-items-center mb-3 animate-in">
+            <form action="{{ url_for('clients_list') }}" method="GET" class="d-flex gap-2">
+                <div class="position-relative" style="width:380px;">
+                    <span class="position-absolute top-50 start-0 translate-middle-y ms-3" style="color:var(--text-tertiary);">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" name="search"
+                           class="form-control ps-5"
+                           style="border:none; background:var(--surface); box-shadow:var(--shadow-sm); border-radius:var(--radius-full); font-size:0.88rem;"
+                           placeholder="Recherche..."
+                           value="{{ search_query or '' }}">
+                </div>
+                <button type="submit" class="btn btn-outline-secondary btn-sm" style="border-radius:var(--radius-full);">
+                    <i class="fas fa-search"></i>
+                </button>
+                {% if search_query %}
+                <a href="{{ url_for('clients_list') }}" class="btn btn-sm btn-outline-danger" style="border-radius:var(--radius-full);">
+                    <i class="fas fa-times"></i>
+                </a>
+                {% endif %}
+            </form>
+
+            <div class="d-flex gap-2 align-items-center">
+                <button class="btn btn-white btn-sm" style="border-radius:var(--radius-full);"><i class="fas fa-download me-1"></i> Exporter</button>
+                <button class="btn btn-white btn-sm" style="border-radius:var(--radius-full);"><i class="fas fa-sync-alt me-1"></i> Actualiser</button>
+                <button class="btn btn-white btn-sm" style="border-radius:var(--radius-full);"><i class="fas fa-columns me-1"></i> Champs &agrave; afficher</button>
+                <button class="btn btn-white btn-sm" style="border-radius:var(--radius-full);"><i class="fas fa-filter me-1"></i> Filtre</button>
+            </div>
+        </div>
+
+        <!-- Client table -->
+        <div class="table-container">
+            <table class="table align-middle mb-0 table-hover">
+                <thead>
+                    <tr>
+                        <th class="ps-4" style="width:40px;"><input type="checkbox" class="form-check-input"></th>
+                        <th>Code</th>
+                        <th>Entreprise</th>
+                        <th>T&eacute;l&eacute;phone</th>
+                        <th>Email</th>
+                        <th>Cat&eacute;gories</th>
+                        <th>ICE</th>
+                        <th>Identifiant fiscal (IF)</th>
+                        <th>Ville</th>
+                        <th>Tarif</th>
+                        <th class="text-end pe-4">Options</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cl in clients %}
+                    <tr class="cursor-pointer" data-href="{{ url_for('client_detail', id=cl.id) }}">
+                        <td class="ps-4" onclick="event.stopPropagation()">
+                            <input type="checkbox" class="form-check-input">
+                        </td>
+                        <td style="font-weight:600; color:var(--primary); font-size:0.84rem;">{{ cl.code_client or '' }}</td>
+                        <td class="fw-bold" style="font-size:0.88rem;">{{ cl.nom }}</td>
+                        <td style="font-size:0.84rem; color:var(--text-secondary);">{{ cl.telephone or '' }}</td>
+                        <td style="font-size:0.84rem; color:var(--text-secondary);">{{ cl.email or '' }}</td>
+                        <td>
+                            {% if cl.type %}
+                            <span class="badge" style="background:var(--info-light); color:var(--primary); font-size:0.72rem;">{{ cl.type }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-size:0.82rem; color:var(--text-tertiary);">{{ cl.ice or '' }}</td>
+                        <td style="font-size:0.82rem; color:var(--text-tertiary);">{{ cl.identifiant_fiscal or '' }}</td>
+                        <td style="font-size:0.84rem;">{{ cl.ville or '' }}</td>
+                        <td>
+                            {% set t = cl.tarification or 'T1' %}
+                            {% if t == 'T1' %}
+                            <span class="badge" style="background:var(--primary); color:white;">T1</span>
+                            {% elif t == 'T2' %}
+                            <span class="badge bg-success">T2</span>
+                            {% elif t == 'T3' %}
+                            <span class="badge bg-warning text-dark">T3</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4" onclick="event.stopPropagation()">
+                            <form action="{{ url_for('toggle_client', id=cl.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm p-0 border-0" style="width:38px;" title="{{ 'D\u00e9sactiver' if cl.actif else 'Activer' }}">
+                                    {% if cl.actif %}
+                                    <span style="display:inline-block; width:34px; height:18px; background:var(--primary); border-radius:10px; position:relative;">
+                                        <span style="position:absolute; right:2px; top:2px; width:14px; height:14px; background:white; border-radius:50%;"></span>
+                                    </span>
+                                    {% else %}
+                                    <span style="display:inline-block; width:34px; height:18px; background:var(--border); border-radius:10px; position:relative;">
+                                        <span style="position:absolute; left:2px; top:2px; width:14px; height:14px; background:white; border-radius:50%;"></span>
+                                    </span>
+                                    {% endif %}
+                                </button>
+                            </form>
+                            <a href="{{ url_for('client_detail', id=cl.id) }}" class="btn btn-sm btn-outline-primary ms-1" style="border-radius:var(--radius-sm); border-color:var(--border); color:var(--primary);" title="&Eacute;diter">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <form action="{{ url_for('delete_client', id=cl.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" style="border-radius:var(--radius-sm);" onclick="return confirm('Supprimer ce client ?')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="11" class="empty-state">
+                            <i class="fas fa-hospital"></i>
+                            Aucun client trouv&eacute;{% if search_query %} pour "{{ search_query }}"{% endif %}.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3" style="color:var(--text-tertiary); font-size:0.8rem; font-weight:500;">
+            <i class="fas fa-database me-1" style="opacity:0.5;"></i>
+            {{ clients | length }} client(s)
+        </div>
+    </div>
+</div>
+
+<!-- Import CSV modal -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-file-csv me-2"></i>Importer clients via CSV</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('import_clients') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="alert" style="background:var(--info-light); color:var(--primary-dark); border:none; border-radius:var(--radius-md); font-size:0.85rem;">
+                        <strong>Format CSV attendu :</strong><br>
+                        <code style="font-size:0.8rem;">nom, telephone, email, ville</code>
+                    </div>
+                    <label class="form-label fw-bold">Fichier CSV</label>
+                    <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-info text-white px-4">Importer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.querySelectorAll('tr[data-href]').forEach(function(row) {
+    row.addEventListener('click', function() { window.location = this.dataset.href; });
+});
+</script>
+</body>
+</html>

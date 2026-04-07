@@ -1,31 +1,17 @@
 <!-- ═══ SIDEBAR ════════════════════════════════════════════════════════════ -->
 <button class="sidebar-toggle-btn" id="sidebarToggle" onclick="toggleSidebar()" title="Menu">
-    <i class="fas fa-bars"></i>
+    <i class="fas fa-chevron-left" id="sidebarToggleIcon"></i>
 </button>
 
 <div class="sidebar" id="sidebar">
-    <div class="sidebar-brand">
-        <!-- MedicaTronic icon: blue arc + green circle + eye -->
-        <div class="logo-icon-sidebar" style="background:transparent; padding:0;">
-            <svg width="36" height="36" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg">
-                <!-- Blue outer C-arc -->
-                <path d="M 36 8 A 18 18 0 1 0 36 36" fill="none" stroke="#1565c0" stroke-width="5.5" stroke-linecap="round"/>
-                <!-- Green filled circle (right side) -->
-                <circle cx="29" cy="22" r="11" fill="#5aab2a"/>
-                <!-- White inner highlight -->
-                <circle cx="26" cy="19" r="5" fill="white" opacity="0.28"/>
-                <!-- Blue pupil/eye dot -->
-                <circle cx="27" cy="21" r="4" fill="#1565c0"/>
-                <!-- White glint -->
-                <circle cx="25.5" cy="19.5" r="1.5" fill="white"/>
-            </svg>
-        </div>
-        <span class="sidebar-text" style="font-size:1.1rem; font-weight:900; letter-spacing:-0.5px;">
-            <span style="color:#1565c0;">Medica</span><span style="color:#5aab2a;">Tronic</span>
-        </span>
+    <div class="sidebar-brand" style="padding:18px 14px 16px; gap:0;">
+        <!-- Full logo – white, hides when collapsed -->
+        <img src="{{ url_for('static', filename='Logo_medicatronic.png') }}" alt="MedicaTronic"
+             class="sidebar-logo-full"
+             style="height:32px; filter:brightness(0) invert(1); opacity:0.95; transition: opacity 0.25s ease, width 0.25s ease;">
     </div>
 
-    <!-- Gebruiker info -->
+    <!-- User info -->
     <div class="sidebar-user">
         <div class="user-avatar">
             {{ session.get('nom', session.get('username', '?'))[0]|upper }}
@@ -34,9 +20,9 @@
             <div class="user-name">{{ session.get('nom', session.get('username', '')) }}</div>
             <div class="user-role">
                 {% if session.get('role') == 'admin' %}
-                <i class="fas fa-crown" style="color:#eab308; font-size:0.65rem;"></i> Admin
+                <i class="fas fa-shield-alt" style="color:#F59E0B; font-size:0.6rem;"></i> Administrateur
                 {% else %}
-                <i class="fas fa-user" style="color:#22c55e; font-size:0.65rem;"></i> Employé
+                <i class="fas fa-user-check" style="color:#10B981; font-size:0.6rem;"></i> Employ&eacute;
                 {% endif %}
             </div>
         </div>
@@ -45,7 +31,7 @@
     <nav class="mt-2">
         <a href="{{ url_for('index') }}"
            class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
-            <i class="fas fa-th-large nav-icon"></i>
+            <i class="fas fa-grid-2 nav-icon"></i>
             <span class="sidebar-text">Tableau de bord</span>
         </a>
         <a href="{{ url_for('producten') }}"
@@ -62,6 +48,11 @@
            class="nav-link {% if request.endpoint == 'overview' %}active{% endif %}">
             <i class="fas fa-chart-bar nav-icon"></i>
             <span class="sidebar-text">Vue d'ensemble</span>
+        </a>
+        <a href="{{ url_for('clients_list') }}"
+           class="nav-link {% if request.endpoint in ['clients_list','new_client','client_detail','edit_client'] %}active{% endif %}">
+            <i class="fas fa-hospital nav-icon"></i>
+            <span class="sidebar-text">Clients</span>
         </a>
         <a href="#" class="nav-link">
             <i class="fas fa-shopping-cart nav-icon"></i>
@@ -80,7 +71,7 @@
     <div class="sidebar-bottom">
         <a href="{{ url_for('logout') }}" class="nav-link text-danger-soft">
             <i class="fas fa-sign-out-alt nav-icon"></i>
-            <span class="sidebar-text">Déconnexion</span>
+            <span class="sidebar-text">D&eacute;connexion</span>
         </a>
     </div>
 </div>
@@ -88,10 +79,17 @@
 <script>
 (function() {
     var collapsed = localStorage.getItem('sidebar_collapsed') === 'true';
-    if (collapsed) document.body.classList.add('sidebar-collapsed');
+    if (collapsed) {
+        document.body.classList.add('sidebar-collapsed');
+        var icon = document.getElementById('sidebarToggleIcon');
+        if (icon) icon.className = 'fas fa-chevron-right';
+    }
 })();
 function toggleSidebar() {
     document.body.classList.toggle('sidebar-collapsed');
-    localStorage.setItem('sidebar_collapsed', document.body.classList.contains('sidebar-collapsed'));
+    var isCollapsed = document.body.classList.contains('sidebar-collapsed');
+    localStorage.setItem('sidebar_collapsed', isCollapsed);
+    var icon = document.getElementById('sidebarToggleIcon');
+    if (icon) icon.className = isCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
 }
 </script>

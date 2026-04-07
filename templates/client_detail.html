@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedicaTronic - {% if is_new %}Nouveau client{% else %}{{ client.nom }}{% endif %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .form-field { margin-bottom: 20px; }
+        .form-field label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .form-field input, .form-field select {
+            border: none;
+            border-bottom: 1.5px solid var(--border);
+            border-radius: 0;
+            padding: 8px 0;
+            font-size: 0.92rem;
+            background: transparent;
+            transition: border-color 0.25s ease;
+            width: 100%;
+        }
+        .form-field input:focus, .form-field select:focus {
+            border-bottom-color: var(--primary);
+            box-shadow: none;
+            outline: none;
+        }
+        .form-field input::placeholder { color: var(--text-tertiary); }
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 28px;
+        }
+        .tarif-option {
+            border: 2px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: block;
+            user-select: none;
+        }
+        .tarif-option:hover { border-color: var(--primary); background: var(--surface-hover); }
+        .tarif-option.selected { border-color: var(--primary); background: var(--primary-light); }
+        .tarif-option input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+
+    <!-- Header -->
+    <div class="detail-header d-flex justify-content-between align-items-center">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0 small">
+                <li class="breadcrumb-item"><a href="{{ url_for('clients_list') }}">Clients</a></li>
+                <li class="breadcrumb-item active fw-bold">
+                    {% if is_new %}Ajouter client{% else %}{{ client.nom }}{% endif %}
+                </li>
+            </ol>
+        </nav>
+        <div class="d-flex gap-2 align-items-center">
+            {% if not is_new %}
+            <span style="color:var(--text-tertiary); font-size:0.82rem; font-weight:500;">Profil</span>
+            {% endif %}
+            <button form="clientForm" type="submit" class="btn btn-info text-white btn-sm px-4 fw-bold" style="border-radius:var(--radius-sm);">
+                <i class="fas fa-save me-1"></i> Enregistrer
+            </button>
+            <a href="{{ url_for('clients_list') }}" class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-sm);">
+                <i class="fas fa-arrow-left me-1"></i> Retour
+            </a>
+        </div>
+    </div>
+
+    <div class="detail-wrapper">
+
+        <!-- Left tabs -->
+        <div class="detail-tabs-sidebar" style="border-left:none; border-right:2px solid var(--primary); order:-1;">
+            {% set current_tab = tab if not is_new else 'general' %}
+            <a href="{% if not is_new %}{{ url_for('client_detail', id=client.id, tab='general') }}{% else %}#{% endif %}"
+               class="detail-tab {% if current_tab == 'general' %}active{% endif %}">
+                Informations G&eacute;n&eacute;rales
+            </a>
+            <a href="{% if not is_new %}{{ url_for('client_detail', id=client.id, tab='facturation') }}{% else %}#{% endif %}"
+               class="detail-tab {% if current_tab == 'facturation' %}active{% endif %}">
+                Facturation &amp; Exp&eacute;dition
+            </a>
+            {% if not is_new %}
+            <a href="{{ url_for('client_detail', id=client.id, tab='factures') }}"
+               class="detail-tab {% if current_tab == 'factures' %}active{% endif %}">
+                Factures
+            </a>
+            <a href="{{ url_for('client_detail', id=client.id, tab='tarifs') }}"
+               class="detail-tab {% if current_tab == 'tarifs' %}active{% endif %}">
+                Tarifs produits
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- Main content -->
+        <div class="detail-main p-4">
+            <form id="clientForm"
+                  action="{% if is_new %}{{ url_for('new_client') }}{% else %}{{ url_for('edit_client', id=client.id) }}{% endif %}"
+                  method="POST">
+                {% if not is_new %}
+                <input type="hidden" name="tab" value="{{ current_tab }}">
+                {% endif %}
+
+                {% if current_tab == 'general' %}
+                <!-- ═══ TAB: General Info ═══ -->
+                <div class="section-title">
+                    <i class="fas fa-building me-2" style="color:var(--primary);"></i>
+                    Informations G&eacute;n&eacute;rales
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>Entreprise *</label>
+                            <input type="text" name="nom" value="{{ (client.nom or '') if client else '' }}" required placeholder="Nom de l'entreprise">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>T&eacute;l&eacute;phone</label>
+                            <input type="text" name="telephone" value="{{ (client.telephone or '') if client else '' }}" placeholder="T&eacute;l&eacute;phone fixe">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>Email</label>
+                            <input type="email" name="email" value="{{ (client.email or '') if client else '' }}" placeholder="email@exemple.com">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>Adresse</label>
+                            <input type="text" name="adresse" value="{{ (client.adresse or '') if client else '' }}" placeholder="Adresse">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>Code client</label>
+                            <input type="text" value="{{ (client.code_client or '') if client else '' }}" disabled
+                                   placeholder="Auto-g&#233;n&#233;r&#233;" style="color:var(--text-tertiary);">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>Code postal</label>
+                            <input type="text" name="code_postal" value="{{ (client.code_postal or '') if client else '' }}" placeholder="Code postal">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>ICE</label>
+                            <input type="text" name="ice" value="{{ (client.ice or '') if client else '' }}" placeholder="Identifiant Commun de l'Entreprise">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>R&eacute;gion</label>
+                            <input type="text" name="region" value="{{ (client.region or '') if client else '' }}" placeholder="R&eacute;gion">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>Identifiant fiscal (IF)</label>
+                            <input type="text" name="identifiant_fiscal" value="{{ (client.identifiant_fiscal or '') if client else '' }}" placeholder="IF">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>Ville</label>
+                            <input type="text" name="ville" value="{{ (client.ville or '') if client else '' }}" placeholder="Ville">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>Latitude (Google Maps)</label>
+                            <input type="text" name="latitude" value="{{ (client.latitude or '') if client else '' }}" placeholder="Latitude">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>Pays</label>
+                            <select name="pays" class="form-select" style="border:none; border-bottom:1.5px solid var(--border); border-radius:0; padding:8px 0;">
+                                <option value="Maroc" {% if not client or (client and client.pays == 'Maroc') %}selected{% endif %}>Maroc</option>
+                                <option value="France" {% if client and client.pays == 'France' %}selected{% endif %}>France</option>
+                                <option value="Belgique" {% if client and client.pays == 'Belgique' %}selected{% endif %}>Belgique</option>
+                                <option value="Autre" {% if client and client.pays == 'Autre' %}selected{% endif %}>Autre</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>Longitude (Google Maps)</label>
+                            <input type="text" name="longitude" value="{{ (client.longitude or '') if client else '' }}" placeholder="Longitude">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>GSM</label>
+                            <input type="text" name="gsm" value="{{ (client.gsm or '') if client else '' }}" placeholder="Num&eacute;ro mobile">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>Contact</label>
+                            <input type="text" name="contact" value="{{ (client.contact or '') if client else '' }}" placeholder="Nom du contact">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-field">
+                            <label>Type Client</label>
+                            <select name="type" class="form-select" style="border:none; border-bottom:1.5px solid var(--border); border-radius:0; padding:8px 0;">
+                                <option value="H&ocirc;pital" {% if client and client.type == 'H\u00f4pital' %}selected{% endif %}>H&ocirc;pital</option>
+                                <option value="Clinique" {% if client and client.type == 'Clinique' %}selected{% endif %}>Clinique</option>
+                                <option value="Cabinet" {% if client and client.type == 'Cabinet' %}selected{% endif %}>Cabinet m&eacute;dical</option>
+                                <option value="Pharmacie" {% if client and client.type == 'Pharmacie' %}selected{% endif %}>Pharmacie</option>
+                                <option value="Distributeur" {% if client and client.type == 'Distributeur' %}selected{% endif %}>Distributeur</option>
+                                <option value="Autre" {% if client and client.type == 'Autre' %}selected{% endif %}>Autre</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tarification selector -->
+                <hr style="border-color:var(--border-light); margin:24px 0;">
+                <div class="section-title" style="font-size:0.95rem;">
+                    <i class="fas fa-tag me-2" style="color:var(--primary);"></i>
+                    Tarification
+                </div>
+
+                {% set current_tarif = (client.tarification or 'T1') if client else 'T1' %}
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label class="tarif-option {% if current_tarif == 'T1' %}selected{% endif %}" onclick="selectTarif('T1', this)">
+                            <input type="radio" name="tarification" value="T1" {% if current_tarif == 'T1' %}checked{% endif %}>
+                            <div class="heading" style="font-size:1.3rem; color:var(--primary);">T1</div>
+                            <div style="font-size:0.78rem; color:var(--text-secondary); font-weight:600;">Tarif Standard</div>
+                        </label>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="tarif-option {% if current_tarif == 'T2' %}selected{% endif %}" onclick="selectTarif('T2', this)">
+                            <input type="radio" name="tarification" value="T2" {% if current_tarif == 'T2' %}checked{% endif %}>
+                            <div class="heading" style="font-size:1.3rem; color:var(--success);">T2</div>
+                            <div style="font-size:0.78rem; color:var(--text-secondary); font-weight:600;">Tarif Pr&eacute;f&eacute;rentiel</div>
+                        </label>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="tarif-option {% if current_tarif == 'T3' %}selected{% endif %}" onclick="selectTarif('T3', this)">
+                            <input type="radio" name="tarification" value="T3" {% if current_tarif == 'T3' %}checked{% endif %}>
+                            <div class="heading" style="font-size:1.3rem; color:var(--warning);">T3</div>
+                            <div style="font-size:0.78rem; color:var(--text-secondary); font-weight:600;">Tarif Premium</div>
+                        </label>
+                    </div>
+                </div>
+
+                {% elif current_tab == 'facturation' %}
+                <!-- ═══ TAB: Facturation & Expedition ═══ -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="section-title">Adresse de facturation</div>
+                        <button type="button" class="btn btn-sm btn-info text-white mb-3" style="border-radius:var(--radius-sm);"
+                                onclick="copyMainAddress('fact')">
+                            <i class="fas fa-copy me-1"></i> Identique &agrave; l'adresse principale
+                        </button>
+                        <div class="form-field">
+                            <label>Adresse de facturation</label>
+                            <input type="text" name="adresse_facturation" id="fact_adresse" value="{{ (client.adresse_facturation or '') if client else '' }}">
+                        </div>
+                        <div class="form-field">
+                            <label>Ville de facturation</label>
+                            <input type="text" name="ville_facturation" id="fact_ville" value="{{ (client.ville_facturation or '') if client else '' }}">
+                        </div>
+                        <div class="form-field">
+                            <label>R&eacute;gion de facturation</label>
+                            <input type="text" name="region_facturation" id="fact_region" value="{{ (client.region_facturation or '') if client else '' }}">
+                        </div>
+                        <div class="form-field">
+                            <label>Code postal de facturation</label>
+                            <input type="text" name="code_postal_facturation" id="fact_cp" value="{{ (client.code_postal_facturation or '') if client else '' }}">
+                        </div>
+                        <div class="form-field">
+                            <label>Pays de facturation</label>
+                            <select name="pays_facturation" class="form-select" style="border:none; border-bottom:1.5px solid var(--border); border-radius:0; padding:8px 0;">
+                                <option value="">--</option>
+                                <option value="Maroc" {% if client and client.pays_facturation == 'Maroc' %}selected{% endif %}>Maroc</option>
+                                <option value="France" {% if client and client.pays_facturation == 'France' %}selected{% endif %}>France</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="section-title">Adresse de livraison</div>
+                        <button type="button" class="btn btn-sm btn-info text-white mb-3" style="border-radius:var(--radius-sm);"
+                                onclick="copyBillingToShipping()">
+                            <i class="fas fa-copy me-1"></i> Copier l'adresse de facturation
+                        </button>
+                        <div class="form-field">
+                            <label>Adresse de livraison</label>
+                            <input type="text" name="adresse_livraison" id="liv_adresse" value="{{ (client.adresse_livraison or '') if client else '' }}">
+                        </div>
+                        <div class="form-field">
+                            <label>Ville de livraison</label>
+                            <input type="text" name="ville_livraison" id="liv_ville" value="{{ (client.ville_livraison or '') if client else '' }}">
+                        </div>
+                        <div class="form-field">
+                            <label>R&eacute;gion de livraison</label>
+                            <input type="text" name="region_livraison" id="liv_region" value="{{ (client.region_livraison or '') if client else '' }}">
+                        </div>
+                        <div class="form-field">
+                            <label>Code postal de livraison</label>
+                            <input type="text" name="code_postal_livraison" id="liv_cp" value="{{ (client.code_postal_livraison or '') if client else '' }}">
+                        </div>
+                        <div class="form-field">
+                            <label>Pays de livraison</label>
+                            <select name="pays_livraison" class="form-select" style="border:none; border-bottom:1.5px solid var(--border); border-radius:0; padding:8px 0;">
+                                <option value="">--</option>
+                                <option value="Maroc" {% if client and client.pays_livraison == 'Maroc' %}selected{% endif %}>Maroc</option>
+                                <option value="France" {% if client and client.pays_livraison == 'France' %}selected{% endif %}>France</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hidden fields to preserve general tab data -->
+                <input type="hidden" name="nom" value="{{ (client.nom or '') if client else '' }}">
+                <input type="hidden" name="type" value="{{ (client.type or '') if client else '' }}">
+                <input type="hidden" name="telephone" value="{{ (client.telephone or '') if client else '' }}">
+                <input type="hidden" name="email" value="{{ (client.email or '') if client else '' }}">
+                <input type="hidden" name="adresse" value="{{ (client.adresse or '') if client else '' }}">
+                <input type="hidden" name="ville" value="{{ (client.ville or '') if client else '' }}">
+                <input type="hidden" name="ice" value="{{ (client.ice or '') if client else '' }}">
+                <input type="hidden" name="identifiant_fiscal" value="{{ (client.identifiant_fiscal or '') if client else '' }}">
+                <input type="hidden" name="code_postal" value="{{ (client.code_postal or '') if client else '' }}">
+                <input type="hidden" name="region" value="{{ (client.region or '') if client else '' }}">
+                <input type="hidden" name="pays" value="{{ (client.pays or 'Maroc') if client else 'Maroc' }}">
+                <input type="hidden" name="gsm" value="{{ (client.gsm or '') if client else '' }}">
+                <input type="hidden" name="contact" value="{{ (client.contact or '') if client else '' }}">
+                <input type="hidden" name="tarification" value="{{ (client.tarification or 'T1') if client else 'T1' }}">
+                <input type="hidden" name="latitude" value="{{ (client.latitude or '') if client else '' }}">
+                <input type="hidden" name="longitude" value="{{ (client.longitude or '') if client else '' }}">
+
+                {% elif current_tab == 'factures' and not is_new %}
+                <!-- ═══ TAB: Factures ═══ -->
+                </form>
+                <div class="section-title">
+                    <i class="fas fa-file-invoice-dollar me-2" style="color:var(--primary);"></i>
+                    Factures de {{ client.nom }}
+                </div>
+                {% if factures %}
+                <div style="border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border-light);">
+                <table class="table table-sm tab-table mb-0">
+                    <thead><tr><th>Num&eacute;ro</th><th>Date</th><th>Montant HT</th><th>Montant TTC</th><th>Statut</th><th></th></tr></thead>
+                    <tbody>
+                        {% for f in factures %}
+                        <tr>
+                            <td class="fw-bold" style="color:var(--primary);">{{ f.numero }}</td>
+                            <td style="color:var(--text-secondary); font-size:0.84rem;">{{ f.date_facture or '&mdash;' }}</td>
+                            <td>{{ "%.2f"|format(f.montant_ht or 0) }} dh</td>
+                            <td class="fw-bold">{{ "%.2f"|format(f.montant_ttc or 0) }} dh</td>
+                            <td>
+                                {% if f.statut == 'Pay\u00e9' %}<span class="badge bg-success">Pay&eacute;</span>
+                                {% elif f.statut == 'Impay\u00e9' %}<span class="badge bg-danger">Impay&eacute;</span>
+                                {% elif f.statut == 'Partiellement pay\u00e9' %}<span class="badge bg-warning text-dark">Partiel</span>
+                                {% else %}<span class="badge bg-secondary">{{ f.statut }}</span>{% endif %}
+                            </td>
+                            <td><a href="{{ url_for('edit_facture', id=f.id) }}" class="btn btn-sm btn-outline-primary" style="border-radius:var(--radius-sm); border-color:var(--border); color:var(--primary);"><i class="fas fa-eye"></i></a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+                {% else %}
+                <div class="empty-state"><i class="fas fa-file-invoice"></i>Aucune facture pour ce client.</div>
+                {% endif %}
+
+                {% elif current_tab == 'tarifs' and not is_new %}
+                <!-- ═══ TAB: Tarifs produits ═══ -->
+                </form>
+                <div class="section-title">
+                    <i class="fas fa-tags me-2" style="color:var(--primary);"></i>
+                    Tarifs produits pour {{ client.nom }}
+                    <span class="badge ms-2" style="font-size:0.7rem; {% if client.tarification == 'T1' %}background:var(--primary); color:white;{% elif client.tarification == 'T2' %}background:var(--success); color:white;{% else %}background:var(--warning); color:#1A2332;{% endif %}">
+                        {{ client.tarification or 'T1' }}
+                    </span>
+                </div>
+                {% if prix_vente %}
+                <div style="border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border-light);">
+                <table class="table table-sm tab-table mb-0">
+                    <thead><tr><th>Produit</th><th>R&eacute;f&eacute;rence</th><th>Prix (dh HT)</th></tr></thead>
+                    <tbody>
+                        {% for pv in prix_vente %}
+                        <tr>
+                            <td class="fw-bold">{{ pv.produit_nom }}</td>
+                            <td style="color:var(--text-tertiary); font-size:0.84rem;">{{ pv.produit_ref or '&mdash;' }}</td>
+                            <td class="fw-bold" style="color:var(--primary);">{{ "%.2f"|format(pv.prix) }} dh</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+                {% else %}
+                <div class="empty-state"><i class="fas fa-tags"></i>Aucun tarif sp&eacute;cifique assign&eacute;.<br><small>Assignez des tarifs depuis la fiche produit.</small></div>
+                {% endif %}
+
+                {% endif %}
+
+                {% if current_tab in ['general', 'facturation'] %}
+                <!-- Submit is handled by the form -->
+                {% endif %}
+            {% if current_tab in ['general', 'facturation'] %}
+            </form>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function selectTarif(value, el) {
+    document.querySelectorAll('.tarif-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    el.querySelector('input[type="radio"]').checked = true;
+}
+
+function copyMainAddress(prefix) {
+    // Copy from main address fields (which are hidden on facturation tab)
+    var adresse = '{{ (client.adresse or "") if client else "" }}';
+    var ville   = '{{ (client.ville or "") if client else "" }}';
+    var region  = '{{ (client.region or "") if client else "" }}';
+    var cp      = '{{ (client.code_postal or "") if client else "" }}';
+    document.getElementById(prefix + '_adresse').value = adresse;
+    document.getElementById(prefix + '_ville').value   = ville;
+    document.getElementById(prefix + '_region').value  = region;
+    document.getElementById(prefix + '_cp').value      = cp;
+}
+
+function copyBillingToShipping() {
+    document.getElementById('liv_adresse').value = document.getElementById('fact_adresse').value;
+    document.getElementById('liv_ville').value   = document.getElementById('fact_ville').value;
+    document.getElementById('liv_region').value  = document.getElementById('fact_region').value;
+    document.getElementById('liv_cp').value      = document.getElementById('fact_cp').value;
+}
+</script>
+</body>
+</html>

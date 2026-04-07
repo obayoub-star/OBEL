@@ -11,19 +11,21 @@
 {% include '_sidebar.html' %}
 <div class="main-content">
     <div class="bg-white border-bottom px-4 py-3 d-flex justify-content-between align-items-center">
-        <h5 class="fw-bold mb-0"><i class="fas fa-users me-2 text-info"></i>Gestion des Utilisateurs</h5>
-        <button class="btn btn-info text-white btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
+        <h5 class="fw-bold mb-0 heading" style="font-size:1.15rem;">
+            <i class="fas fa-users me-2" style="color:var(--primary); opacity:0.7;"></i>Gestion des Utilisateurs
+        </h5>
+        <button class="btn btn-info text-white btn-sm" style="border-radius:var(--radius-sm);" data-bs-toggle="modal" data-bs-target="#addUserModal">
             <i class="fas fa-plus me-1"></i> Ajouter un utilisateur
         </button>
     </div>
     <div class="content-padding">
-        <div class="table-container shadow-sm">
+        <div class="table-container animate-in">
             <table class="table align-middle mb-0">
-                <thead style="background:#2c3e50; color:white;">
+                <thead>
                     <tr>
                         <th class="ps-4">Nom</th>
                         <th>Identifiant</th>
-                        <th>Rôle</th>
+                        <th>R&ocirc;le</th>
                         <th>Statut</th>
                         <th class="text-end pe-4">Actions</th>
                     </tr>
@@ -32,32 +34,32 @@
                     {% for u in users %}
                     <tr>
                         <td class="ps-4 fw-bold">{{ u.nom or u.username }}</td>
-                        <td class="text-muted small">{{ u.username }}</td>
+                        <td style="color:var(--text-secondary); font-size:0.84rem;">{{ u.username }}</td>
                         <td>
                             {% if u.role == 'admin' %}
-                                <span class="badge px-2 py-1" style="background:#fef3c7; color:#92400e;">
-                                    <i class="fas fa-crown me-1"></i> Administrateur
+                                <span class="badge px-3 py-1" style="background:var(--warning-light); color:#92400E;">
+                                    <i class="fas fa-shield-alt me-1"></i> Administrateur
                                 </span>
                             {% else %}
-                                <span class="badge px-2 py-1" style="background:#dcfce7; color:#166534;">
-                                    <i class="fas fa-user me-1"></i> Employé
+                                <span class="badge px-3 py-1" style="background:var(--success-light); color:#065F46;">
+                                    <i class="fas fa-user-check me-1"></i> Employ&eacute;
                                 </span>
                             {% endif %}
                         </td>
                         <td>
                             {% if u.actif %}
-                                <span class="badge bg-success">Actif</span>
+                                <span class="badge bg-success px-2 py-1">Actif</span>
                             {% else %}
-                                <span class="badge bg-secondary">Inactif</span>
+                                <span class="badge bg-secondary px-2 py-1">Inactif</span>
                             {% endif %}
                         </td>
                         <td class="text-end pe-4">
                             <form action="{{ url_for('admin_toggle_user', uid=u.id) }}" method="POST" class="d-inline">
-                                <button type="submit" class="btn btn-sm {% if u.actif %}btn-outline-warning{% else %}btn-outline-success{% endif %} me-1">
+                                <button type="submit" class="btn btn-sm {% if u.actif %}btn-outline-warning{% else %}btn-outline-success{% endif %} me-1" style="border-radius:var(--radius-sm);">
                                     {% if u.actif %}<i class="fas fa-ban"></i>{% else %}<i class="fas fa-check"></i>{% endif %}
                                 </button>
                             </form>
-                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
+                            <button class="btn btn-sm btn-outline-secondary" style="border-radius:var(--radius-sm);" data-bs-toggle="modal"
                                     data-bs-target="#resetModal{{ u.id }}">
                                 <i class="fas fa-key"></i>
                             </button>
@@ -66,17 +68,17 @@
                     <!-- Reset password modal -->
                     <div class="modal fade" id="resetModal{{ u.id }}" tabindex="-1">
                         <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content border-0 shadow">
-                                <div class="modal-header" style="background:#2c3e50; color:white;">
-                                    <h5 class="modal-title">Réinitialiser le mot de passe</h5>
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">R&eacute;initialiser le mot de passe</h5>
                                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                 </div>
                                 <form action="{{ url_for('admin_reset_password', uid=u.id) }}" method="POST">
-                                    <div class="modal-body p-4">
-                                        <label class="form-label fw-bold">{{ u.username }} — Nouveau mot de passe</label>
+                                    <div class="modal-body">
+                                        <label class="form-label fw-bold">{{ u.username }} &mdash; Nouveau mot de passe</label>
                                         <input type="password" name="password" class="form-control" required minlength="4">
                                     </div>
-                                    <div class="modal-footer border-0">
+                                    <div class="modal-footer">
                                         <button type="submit" class="btn btn-info text-white px-4">Enregistrer</button>
                                     </div>
                                 </form>
@@ -90,16 +92,16 @@
     </div>
 </div>
 
-<!-- Ajouter utilisateur modal -->
+<!-- Add user modal -->
 <div class="modal fade" id="addUserModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header" style="background:#2c3e50; color:white;">
+        <div class="modal-content">
+            <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Nouvel utilisateur</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('admin_add_user') }}" method="POST">
-                <div class="modal-body p-4">
+                <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-12">
                             <label class="form-label fw-bold">Nom complet</label>
@@ -114,17 +116,17 @@
                             <input type="password" name="password" class="form-control" required minlength="4">
                         </div>
                         <div class="col-12">
-                            <label class="form-label fw-bold">Rôle</label>
+                            <label class="form-label fw-bold">R&ocirc;le</label>
                             <select name="role" class="form-select">
-                                <option value="employee">Employé</option>
+                                <option value="employee">Employ&eacute;</option>
                                 <option value="admin">Administrateur</option>
                             </select>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0">
+                <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-info text-white px-4">Créer</button>
+                    <button type="submit" class="btn btn-info text-white px-4">Cr&eacute;er</button>
                 </div>
             </form>
         </div>

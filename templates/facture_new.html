@@ -13,23 +13,25 @@
     <div class="detail-header d-flex justify-content-between align-items-center p-3 bg-white border-bottom">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-0 small">
-                <li class="breadcrumb-item"><a href="{{ url_for('ventes') }}" style="color:#0dcaf0;">Ventes</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('ventes') }}">Ventes</a></li>
                 <li class="breadcrumb-item active fw-bold">Nouvelle facture</li>
             </ol>
         </nav>
-        <a href="{{ url_for('ventes') }}" class="btn btn-outline-secondary btn-sm">
+        <a href="{{ url_for('ventes') }}" class="btn btn-outline-secondary btn-sm" style="border-radius:var(--radius-sm);">
             <i class="fas fa-arrow-left me-1"></i> Retour
         </a>
     </div>
-    <div class="content-padding" style="max-width:700px;">
-        <div class="bg-white border rounded p-4 shadow-sm mt-2">
-            <h5 class="fw-bold mb-4"><i class="fas fa-file-invoice me-2 text-info"></i>Nouvelle facture</h5>
+    <div class="content-padding" style="max-width:720px;">
+        <div class="field-card mt-2 animate-in">
+            <h5 class="fw-bold mb-4 heading">
+                <i class="fas fa-file-invoice me-2" style="color:var(--primary);"></i>Nouvelle facture
+            </h5>
             <form action="{{ url_for('new_facture') }}" method="POST">
                 <div class="row g-3">
                     <div class="col-12">
                         <label class="form-label fw-bold">Client *</label>
                         <select name="client_id" class="form-select" required>
-                            <option value="">— Sélectionner un client —</option>
+                            <option value="">&mdash; S&eacute;lectionner un client &mdash;</option>
                             {% for cl in clients %}
                             <option value="{{ cl.id }}">{{ cl.nom }}</option>
                             {% endfor %}
@@ -37,20 +39,20 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Date de facture</label>
-                        <div class="form-control bg-light text-muted">
-                            <i class="fas fa-calendar-check me-1"></i> {{ today }}
-                            <small class="d-block" style="font-size:0.72rem;">Fixée automatiquement à aujourd'hui</small>
+                        <div class="form-control" style="background:var(--bg); color:var(--text-secondary); border-color:var(--border);">
+                            <i class="fas fa-calendar-check me-1" style="color:var(--primary);"></i> {{ today }}
+                            <small class="d-block" style="font-size:0.72rem; color:var(--text-tertiary);">Fix&eacute;e automatiquement</small>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-bold">Date d'échéance</label>
+                        <label class="form-label fw-bold">Date d'&eacute;ch&eacute;ance</label>
                         <input type="date" name="date_echeance" class="form-control" value="{{ today }}">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Devise</label>
                         <select name="devise" class="form-select">
                             <option value="MAD">dh - MAD</option>
-                            <option value="EUR">€ - EUR</option>
+                            <option value="EUR">&euro; - EUR</option>
                             <option value="USD">$ - USD</option>
                         </select>
                     </div>
@@ -64,9 +66,9 @@
                     </div>
                 </div>
                 <div class="d-flex gap-2 mt-4 justify-content-end">
-                    <a href="{{ url_for('ventes') }}" class="btn btn-outline-secondary px-4">Annuler</a>
-                    <button type="submit" class="btn btn-info text-white px-4 fw-bold">
-                        <i class="fas fa-arrow-right me-1"></i> Créer la facture
+                    <a href="{{ url_for('ventes') }}" class="btn btn-outline-secondary px-4" style="border-radius:var(--radius-sm);">Annuler</a>
+                    <button type="submit" class="btn btn-info text-white px-4 fw-bold" style="border-radius:var(--radius-sm);">
+                        <i class="fas fa-arrow-right me-1"></i> Cr&eacute;er la facture
                     </button>
                 </div>
             </form>

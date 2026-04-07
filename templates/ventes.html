@@ -9,27 +9,68 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         .stat-card {
-            background: #fff;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            padding: 16px 20px;
-            min-width: 180px;
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-light);
+            padding: 18px 22px;
+            min-width: 190px;
             cursor: pointer;
-            transition: border-color .15s;
+            transition: all var(--duration) var(--ease);
+            box-shadow: var(--shadow-sm);
+            position: relative;
+            overflow: hidden;
         }
-        .stat-card:hover { border-color: #0dcaf0; }
-        .stat-card.active { border-left: 4px solid #0dcaf0; background: #f0f9ff; }
-        .stat-card.danger  { border-left: 4px solid #ef4444; }
-        .stat-card .progress { height: 5px; border-radius: 3px; }
-        .stat-label { font-size: 0.78rem; font-weight: 700; color: #64748b; }
-        .stat-amount { font-size: 1.25rem; font-weight: 800; }
-        .stat-sub { font-size: 0.72rem; color: #94a3b8; }
-        .status-badge { padding: 3px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; }
-        .status-Impayé         { background:#fee2e2; color:#991b1b; }
-        .status-Payé           { background:#dcfce7; color:#166534; }
-        .status-En.instance    { background:#fef9c3; color:#854d0e; }
-        .status-Partiellement  { background:#ffedd5; color:#9a3412; }
-        .bottom-add { position:fixed; bottom:24px; left:290px; }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--border);
+            transition: background var(--duration) var(--ease);
+        }
+        .stat-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+        .stat-card.active {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+        .stat-card.active::before { background: var(--primary); }
+        .stat-card.danger::before { background: var(--danger); }
+        .stat-card .progress { height: 4px; border-radius: var(--radius-full); background: var(--border-light); }
+        .stat-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.74rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .stat-amount {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+        .stat-sub { font-size: 0.72rem; color: var(--text-tertiary); font-weight: 500; }
+        .bottom-add {
+            position: fixed;
+            bottom: 28px;
+            right: 32px;
+            z-index: 100;
+        }
+        .bottom-add .btn {
+            border-radius: var(--radius-full) !important;
+            box-shadow: var(--shadow-lg);
+            padding: 12px 28px !important;
+        }
+        .bottom-add .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-xl);
+        }
     </style>
 </head>
 <body>
@@ -37,66 +78,65 @@
 {% include '_sidebar.html' %}
 
 <div class="main-content">
-    <!-- Tab navigation (comme dans bijlage 4) -->
+    <!-- Tab navigation -->
     <div class="bg-white border-bottom px-4 pt-3">
         <div class="d-flex gap-4 mb-0">
-            <a href="#" class="text-decoration-none text-muted pb-2">Devis</a>
-            <a href="#" class="text-decoration-none text-muted pb-2">Bon de travail</a>
-            <a href="{{ url_for('ventes') }}" class="text-decoration-none fw-bold text-dark border-bottom border-primary border-3 pb-2">Factures</a>
-            <a href="#" class="text-decoration-none text-muted pb-2">Bon de Livraison</a>
-            <a href="#" class="text-decoration-none text-muted pb-2">Avoir</a>
-            <a href="#" class="text-decoration-none text-muted pb-2">Règlements</a>
-            <a href="#" class="text-decoration-none text-muted pb-2">Avances</a>
+            <a href="#" class="text-decoration-none pb-2" style="color:var(--text-tertiary); font-size:0.88rem;">Devis</a>
+            <a href="#" class="text-decoration-none pb-2" style="color:var(--text-tertiary); font-size:0.88rem;">Bon de travail</a>
+            <a href="{{ url_for('ventes') }}" class="text-decoration-none fw-bold heading pb-2" style="color:var(--text); border-bottom:2px solid var(--primary); font-size:0.88rem;">Factures</a>
+            <a href="#" class="text-decoration-none pb-2" style="color:var(--text-tertiary); font-size:0.88rem;">Bon de Livraison</a>
+            <a href="#" class="text-decoration-none pb-2" style="color:var(--text-tertiary); font-size:0.88rem;">Avoir</a>
+            <a href="#" class="text-decoration-none pb-2" style="color:var(--text-tertiary); font-size:0.88rem;">R&egrave;glements</a>
+            <a href="#" class="text-decoration-none pb-2" style="color:var(--text-tertiary); font-size:0.88rem;">Avances</a>
         </div>
     </div>
 
     <div class="content-padding">
 
-        <!-- Cartes statistiques -->
+        <!-- Stat cards -->
         <div class="d-flex gap-3 mb-4 flex-wrap">
-            <!-- Impayé -->
-            {% set s_imp = stats.get('Impayé', {'nb':0,'total':0}) %}
+            {% set s_imp = stats.get('Impay\u00e9', {'nb':0,'total':0}) %}
             {% set pct_imp = ((s_imp.total or 0) / total_ttc * 100) | round(2) if total_ttc else 0 %}
-            <a href="{{ url_for('ventes', statut='Impayé') }}" class="text-decoration-none">
-                <div class="stat-card danger {% if statut_filtre == 'Impayé' %}active{% endif %}">
-                    <div class="stat-label">Impayé</div>
+            <a href="{{ url_for('ventes', statut='Impay\u00e9') }}" class="text-decoration-none animate-in animate-in-delay-1">
+                <div class="stat-card danger {% if statut_filtre == 'Impay\u00e9' %}active{% endif %}">
+                    <div class="stat-label">Impay&eacute;</div>
                     <div class="stat-amount text-danger">{{ "%.2f"|format(s_imp.total or 0) }} dh</div>
                     <div class="stat-sub">{{ s_imp.nb }} / {{ total_all }} Factures</div>
                     <div class="progress mt-2"><div class="progress-bar bg-danger" style="width:{{ pct_imp }}%"></div></div>
                     <div class="stat-sub mt-1">{{ pct_imp }}%</div>
                 </div>
             </a>
-            <!-- Partiellement payé -->
-            {% set s_part = stats.get('Partiellement payé', {'nb':0,'total':0}) %}
+
+            {% set s_part = stats.get('Partiellement pay\u00e9', {'nb':0,'total':0}) %}
             {% set pct_part = ((s_part.total or 0) / total_ttc * 100) | round(2) if total_ttc else 0 %}
-            <a href="{{ url_for('ventes', statut='Partiellement payé') }}" class="text-decoration-none">
-                <div class="stat-card {% if statut_filtre == 'Partiellement payé' %}active{% endif %}">
-                    <div class="stat-label">Partiellement payé</div>
-                    <div class="stat-amount text-warning">{{ "%.2f"|format(s_part.total or 0) }} dh</div>
+            <a href="{{ url_for('ventes', statut='Partiellement pay\u00e9') }}" class="text-decoration-none animate-in animate-in-delay-2">
+                <div class="stat-card {% if statut_filtre == 'Partiellement pay\u00e9' %}active{% endif %}">
+                    <div class="stat-label">Partiellement pay&eacute;</div>
+                    <div class="stat-amount" style="color:var(--warning);">{{ "%.2f"|format(s_part.total or 0) }} dh</div>
                     <div class="stat-sub">{{ s_part.nb }} / {{ total_all }} Factures</div>
                     <div class="progress mt-2"><div class="progress-bar bg-warning" style="width:{{ pct_part }}%"></div></div>
                     <div class="stat-sub mt-1">{{ pct_part }}%</div>
                 </div>
             </a>
-            <!-- Payé -->
-            {% set s_pay = stats.get('Payé', {'nb':0,'total':0}) %}
+
+            {% set s_pay = stats.get('Pay\u00e9', {'nb':0,'total':0}) %}
             {% set pct_pay = ((s_pay.total or 0) / total_ttc * 100) | round(2) if total_ttc else 0 %}
-            <a href="{{ url_for('ventes', statut='Payé') }}" class="text-decoration-none">
-                <div class="stat-card {% if statut_filtre == 'Payé' %}active{% endif %}">
-                    <div class="stat-label">Payé</div>
-                    <div class="stat-amount text-success">{{ "%.2f"|format(s_pay.total or 0) }} dh</div>
+            <a href="{{ url_for('ventes', statut='Pay\u00e9') }}" class="text-decoration-none animate-in animate-in-delay-3">
+                <div class="stat-card {% if statut_filtre == 'Pay\u00e9' %}active{% endif %}">
+                    <div class="stat-label">Pay&eacute;</div>
+                    <div class="stat-amount" style="color:var(--success);">{{ "%.2f"|format(s_pay.total or 0) }} dh</div>
                     <div class="stat-sub">{{ s_pay.nb }} / {{ total_all }} Factures</div>
-                    <div class="progress mt-2"><div class="progress-bar bg-success" style="width:{{ pct_pay }}%"></div></div>
+                    <div class="progress mt-2"><div class="progress-bar" style="background:var(--success); width:{{ pct_pay }}%"></div></div>
                     <div class="stat-sub mt-1">{{ pct_pay }}%</div>
                 </div>
             </a>
-            <!-- En instance -->
+
             {% set s_inst = stats.get('En instance', {'nb':0,'total':0}) %}
             {% set pct_inst = ((s_inst.total or 0) / total_ttc * 100) | round(2) if total_ttc else 0 %}
-            <a href="{{ url_for('ventes', statut='En instance') }}" class="text-decoration-none">
+            <a href="{{ url_for('ventes', statut='En instance') }}" class="text-decoration-none animate-in animate-in-delay-4">
                 <div class="stat-card {% if statut_filtre == 'En instance' %}active{% endif %}">
                     <div class="stat-label">En instance</div>
-                    <div class="stat-amount text-secondary">{{ "%.2f"|format(s_inst.total or 0) }} dh</div>
+                    <div class="stat-amount" style="color:var(--text-secondary);">{{ "%.2f"|format(s_inst.total or 0) }} dh</div>
                     <div class="stat-sub">{{ s_inst.nb }} / {{ total_all }} Factures</div>
                     <div class="progress mt-2"><div class="progress-bar bg-secondary" style="width:{{ pct_inst }}%"></div></div>
                     <div class="stat-sub mt-1">{{ pct_inst }}%</div>
@@ -104,52 +144,44 @@
             </a>
         </div>
 
-        <!-- Barre recherche + actions -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <!-- Search + actions -->
+        <div class="d-flex justify-content-between align-items-center mb-3 animate-in animate-in-delay-3">
             <form action="{{ url_for('ventes') }}" method="GET" class="d-flex gap-2">
                 <div class="position-relative">
-                    <span class="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted">
+                    <span class="position-absolute top-50 start-0 translate-middle-y ms-3" style="color:var(--text-tertiary);">
                         <i class="fas fa-search"></i>
                     </span>
-                    <input type="text" name="search" class="form-control ps-5 border-0 shadow-sm"
-                           style="width:280px;" placeholder="N° facture, client, objet..."
+                    <input type="text" name="search" class="form-control ps-5"
+                           style="width:300px; border:none; background:var(--surface); box-shadow:var(--shadow-sm); border-radius:var(--radius-full);"
+                           placeholder="N&deg; facture, client, objet..."
                            value="{{ search_query or '' }}">
                     {% if statut_filtre %}
                     <input type="hidden" name="statut" value="{{ statut_filtre }}">
                     {% endif %}
                 </div>
-                <button type="submit" class="btn btn-outline-secondary btn-sm">Filtrer</button>
+                <button type="submit" class="btn btn-outline-secondary btn-sm" style="border-radius:var(--radius-full);">Filtrer</button>
                 {% if statut_filtre or search_query %}
-                <a href="{{ url_for('ventes') }}" class="btn btn-sm btn-outline-danger">
-                    <i class="fas fa-times"></i> Réinitialiser
+                <a href="{{ url_for('ventes') }}" class="btn btn-sm btn-outline-danger" style="border-radius:var(--radius-full);">
+                    <i class="fas fa-times"></i> R&eacute;initialiser
                 </a>
                 {% endif %}
             </form>
 
             <div class="d-flex gap-2 align-items-center">
-                <small class="text-muted">dh - MAD</small>
-                <button class="btn btn-white bg-white shadow-sm btn-sm">
-                    <i class="fas fa-sort me-1"></i> Trier
-                </button>
-                <button class="btn btn-white bg-white shadow-sm btn-sm">
-                    <i class="fas fa-columns me-1"></i> Champs à afficher
-                </button>
-                <button class="btn btn-white bg-white shadow-sm btn-sm">
-                    <i class="fas fa-filter me-1"></i> Filtre
-                </button>
-                <button class="btn btn-white bg-white shadow-sm btn-sm">
-                    <i class="fas fa-download me-1"></i> Exporter
-                </button>
+                <small style="color:var(--text-tertiary); font-weight:500;">dh - MAD</small>
+                <button class="btn btn-white btn-sm" style="border-radius:var(--radius-full);"><i class="fas fa-sort me-1"></i> Trier</button>
+                <button class="btn btn-white btn-sm" style="border-radius:var(--radius-full);"><i class="fas fa-columns me-1"></i> Champs</button>
+                <button class="btn btn-white btn-sm" style="border-radius:var(--radius-full);"><i class="fas fa-download me-1"></i> Exporter</button>
             </div>
         </div>
 
-        <!-- Tableau factures -->
-        <div class="table-container shadow-sm">
+        <!-- Invoice table -->
+        <div class="table-container">
             <table class="table align-middle mb-0 table-hover">
-                <thead style="background-color:#2c3e50; color:white;">
+                <thead>
                     <tr>
                         <th class="ps-4" style="width:40px;"><input type="checkbox" class="form-check-input"></th>
-                        <th>Numéro</th>
+                        <th>Num&eacute;ro</th>
                         <th>Date de facture</th>
                         <th>Client</th>
                         <th>Total HT</th>
@@ -165,36 +197,36 @@
                         <td class="ps-4" onclick="event.stopPropagation()">
                             <input type="checkbox" class="form-check-input">
                         </td>
-                        <td class="fw-bold text-info">{{ f.numero }}</td>
-                        <td class="text-muted small">{{ f.date_facture or '—' }}</td>
-                        <td>{{ f.client_nom or '—' }}</td>
-                        <td>{{ "%.2f"|format(f.montant_ht or 0) }} dh</td>
-                        <td class="fw-bold">{{ "%.2f"|format(f.montant_ttc or 0) }} dh</td>
+                        <td class="fw-bold" style="color:var(--primary);">{{ f.numero }}</td>
+                        <td style="color:var(--text-secondary); font-size:0.84rem;">{{ f.date_facture or '&mdash;' }}</td>
+                        <td style="font-weight:600;">{{ f.client_nom or '&mdash;' }}</td>
+                        <td style="font-size:0.88rem;">{{ "%.2f"|format(f.montant_ht or 0) }} dh</td>
+                        <td style="font-weight:700; font-size:0.88rem;">{{ "%.2f"|format(f.montant_ttc or 0) }} dh</td>
                         <td>
                             {% set s = f.statut or 'En instance' %}
-                            {% if s == 'Impayé' %}
+                            {% if s == 'Impay\u00e9' %}
                                 <span class="badge bg-danger px-2 py-1">{{ s }}</span>
-                            {% elif s == 'Payé' %}
+                            {% elif s == 'Pay\u00e9' %}
                                 <span class="badge bg-success px-2 py-1">{{ s }}</span>
-                            {% elif s == 'Partiellement payé' %}
+                            {% elif s == 'Partiellement pay\u00e9' %}
                                 <span class="badge bg-warning text-dark px-2 py-1">{{ s }}</span>
                             {% else %}
                                 <span class="badge bg-secondary px-2 py-1">{{ s }}</span>
                             {% endif %}
                         </td>
-                        <td class="text-muted small">{{ f.objet or '—' }}</td>
+                        <td style="color:var(--text-tertiary); font-size:0.84rem;">{{ f.objet or '&mdash;' }}</td>
                         <td class="text-end pe-4" onclick="event.stopPropagation()">
                             <a href="{{ url_for('edit_facture', id=f.id) }}"
-                               class="btn btn-sm btn-outline-primary me-1" title="Éditer">
+                               class="btn btn-sm btn-outline-primary me-1" style="border-radius:var(--radius-sm); border-color:var(--border); color:var(--primary);" title="&Eacute;diter">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <a href="{{ url_for('print_facture', id=f.id) }}"
-                               target="_blank"
-                               class="btn btn-sm btn-outline-secondary me-1" title="Imprimer">
+                            <a href="{{ url_for('print_facture', id=f.id) }}" target="_blank"
+                               class="btn btn-sm btn-outline-secondary me-1" style="border-radius:var(--radius-sm);" title="Imprimer">
                                 <i class="fas fa-print"></i>
                             </a>
                             <form action="{{ url_for('delete_facture', id=f.id) }}" method="POST" class="d-inline">
                                 <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        style="border-radius:var(--radius-sm);"
                                         onclick="return confirm('Supprimer cette facture ?')" title="Supprimer">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -203,9 +235,9 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="9" class="text-center text-muted py-5">
-                            <i class="fas fa-file-invoice fa-3x mb-3 d-block opacity-25"></i>
-                            Aucune facture trouvée.
+                        <td colspan="9" class="empty-state">
+                            <i class="fas fa-file-invoice"></i>
+                            Aucune facture trouv&eacute;e.
                         </td>
                     </tr>
                     {% endfor %}
@@ -213,14 +245,17 @@
             </table>
         </div>
 
-        <div class="mt-2 text-muted small">{{ factures | length }} facture(s)</div>
+        <div class="mt-3" style="color:var(--text-tertiary); font-size:0.8rem; font-weight:500;">
+            <i class="fas fa-database me-1" style="opacity:0.5;"></i>
+            {{ factures | length }} facture(s)
+        </div>
     </div>
 </div>
 
-<!-- Bouton flottant -->
+<!-- Floating add button -->
 <div class="bottom-add">
-    <a href="{{ url_for('new_facture') }}" class="btn btn-info text-white shadow px-4 py-2 fw-bold">
-        <i class="fas fa-plus me-2"></i> Ajouter une facture
+    <a href="{{ url_for('new_facture') }}" class="btn btn-info text-white fw-bold">
+        <i class="fas fa-plus me-2"></i> Nouvelle facture
     </a>
 </div>
 
@@ -230,9 +265,5 @@ document.querySelectorAll('tr[data-href]').forEach(function(row) {
     row.addEventListener('click', function() { window.location = this.dataset.href; });
 });
 </script>
-<style>
-.cursor-pointer { cursor:pointer; }
-.table-hover tbody tr:hover { background:#f0f7ff; }
-</style>
 </body>
 </html>

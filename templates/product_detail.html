@@ -7,98 +7,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        /* ─── Detail-pagina layout ──────────────────── */
-        .detail-wrapper {
-            display: flex;
-            height: 100%;
-        }
-        .detail-main {
-            flex: 1;
-            overflow-y: auto;
-        }
-        .detail-tabs-sidebar {
-            width: 190px;
-            min-width: 190px;
-            background: #fff;
-            border-left: 3px solid #0dcaf0;
-            display: flex;
-            flex-direction: column;
-            padding-top: 8px;
-        }
-        .detail-tab {
-            display: block;
-            padding: 11px 18px;
-            font-size: 0.82rem;
-            color: #475569;
-            text-decoration: none;
-            border-bottom: 1px solid #f1f5f9;
-            transition: background 0.15s;
-        }
-        .detail-tab:hover { background: #f0f7ff; color: #0dcaf0; }
-        .detail-tab.active {
-            background: #e0f2fe;
-            color: #0284c7;
-            font-weight: 700;
-            border-left: 3px solid #0dcaf0;
-            margin-left: -3px;
-        }
-
-        /* ─── Kaart-stijl velden ──────────────────────── */
-        .field-card {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 18px 20px;
-            margin-bottom: 16px;
-        }
-        .field-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #94a3b8;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 4px;
-        }
-        .location-box {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 12px 16px;
-            font-size: 0.85rem;
-        }
-
-        /* ─── Breadcrumb header ───────────────────────── */
-        .detail-header {
-            background: #fff;
-            border-bottom: 1px solid #e2e8f0;
-            padding: 12px 24px;
-        }
-        .breadcrumb-item a { color: #0dcaf0; text-decoration: none; }
-
-        /* ─── Tabel stijl in tabs ─────────────────────── */
-        .tab-table thead th {
-            background: #2c3e50;
-            color: #fff;
-            font-size: 0.78rem;
-            font-weight: 600;
-            padding: 10px 14px;
-        }
-        .tab-table tbody td { font-size: 0.85rem; padding: 10px 14px; }
-
-        /* ─── Historiek badge ─────────────────────────── */
-        .history-row { background: #f8fafc; }
-
-        /* ─── Pièces jointes placeholder ─────────────── */
-        .pj-placeholder {
-            min-height: 280px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: #94a3b8;
-        }
-    </style>
 </head>
 <body>
 
@@ -106,7 +14,7 @@
 
 <div class="main-content">
 
-    <!-- Breadcrumb + actiebalk -->
+    <!-- Breadcrumb + actions -->
     <div class="detail-header d-flex justify-content-between align-items-center">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-0 small">
@@ -118,41 +26,37 @@
             <span class="badge {% if produit.statut == 'Actif' %}bg-success{% else %}bg-secondary{% endif %} px-3 py-2">
                 {{ produit.statut }}
             </span>
-            <button form="editForm" type="submit" class="btn btn-info text-white btn-sm px-3">
+            <button form="editForm" type="submit" class="btn btn-info text-white btn-sm px-3" style="border-radius:var(--radius-sm);">
                 <i class="fas fa-save me-1"></i> Enregistrer
             </button>
-            <a href="{{ url_for('producten') }}" class="btn btn-outline-secondary btn-sm px-3">
+            <a href="{{ url_for('producten') }}" class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-sm);">
                 <i class="fas fa-arrow-left me-1"></i> Retour
             </a>
             <a href="{{ url_for('delete', id=produit.id) }}"
-               class="btn btn-outline-danger btn-sm"
-               onclick="return confirm('Supprimer ce produit définitivement ?')">
+               class="btn btn-outline-danger btn-sm" style="border-radius:var(--radius-sm);"
+               onclick="return confirm('Supprimer ce produit d\u00e9finitivement ?')">
                 <i class="fas fa-trash"></i>
             </a>
         </div>
     </div>
 
-    <!-- Detail wrapper: inhoud + rechter tab-sidebar -->
+    <!-- Detail wrapper -->
     <div class="detail-wrapper">
 
-        <!-- ── Hoofd-inhoud ── -->
+        <!-- Main content -->
         <div class="detail-main p-4">
 
             {% set current_tab = tab %}
 
-            {# ══════════════════════════════════════════════
-               TAB 1 : INFORMATIONS GÉNÉRALES
-            ══════════════════════════════════════════════ #}
+            {# ═══ TAB 1: INFORMATIONS ═══ #}
             {% if current_tab == 'informations' %}
 
             <form id="editForm" action="{{ url_for('edit_produit', id=produit.id) }}" method="POST">
 
-                <!-- Naam + beschrijving -->
-                <div class="field-card">
+                <div class="field-card animate-in">
                     <div class="mb-3">
                         <label class="field-label">Nom du produit *</label>
-                        <input type="text" name="nom" class="form-control form-control-sm"
-                               value="{{ produit.nom }}" required>
+                        <input type="text" name="nom" class="form-control form-control-sm" value="{{ produit.nom }}" required>
                     </div>
                     <div>
                         <label class="field-label">Description</label>
@@ -160,482 +64,367 @@
                     </div>
                 </div>
 
-                <!-- Prijzen + codes (2 kolommen) -->
-                <div class="field-card">
+                <div class="field-card animate-in animate-in-delay-1">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="field-label">Référence #</label>
-                            <input type="text" name="reference" class="form-control form-control-sm"
-                                   value="{{ produit.reference or '' }}">
+                            <label class="field-label">R&eacute;f&eacute;rence #</label>
+                            <input type="text" name="reference" class="form-control form-control-sm" value="{{ produit.reference or '' }}">
                         </div>
                         <div class="col-md-6">
-                            <label class="field-label">N° de Fiche</label>
-                            <input type="text" name="no_fiche" class="form-control form-control-sm"
-                                   value="{{ produit.no_fiche or '' }}">
+                            <label class="field-label">N&deg; de Fiche</label>
+                            <input type="text" name="no_fiche" class="form-control form-control-sm" value="{{ produit.no_fiche or '' }}">
                         </div>
                         <div class="col-md-6">
                             <label class="field-label">Code-Barres</label>
-                            <input type="text" name="code_barres" class="form-control form-control-sm"
-                                   value="{{ produit.code_barres or '' }}">
+                            <input type="text" name="code_barres" class="form-control form-control-sm" value="{{ produit.code_barres or '' }}">
                         </div>
                         <div class="col-md-6">
-                            <label class="field-label">Stock minimum de sécurité</label>
-                            <input type="number" name="stock_min_securite" class="form-control form-control-sm"
-                                   value="{{ produit.stock_min_securite or 0 }}">
+                            <label class="field-label">Stock minimum de s&eacute;curit&eacute;</label>
+                            <input type="number" name="stock_min_securite" class="form-control form-control-sm" value="{{ produit.stock_min_securite or 0 }}">
                         </div>
                         <div class="col-md-6">
-                            <label class="field-label">Prix de Revient TTC (€)</label>
-                            <input type="number" name="prix_revient_ttc" class="form-control form-control-sm"
-                                   step="0.01" value="{{ produit.prix_revient_ttc or 0 }}">
+                            <label class="field-label">Prix de Revient TTC (&euro;)</label>
+                            <input type="number" name="prix_revient_ttc" class="form-control form-control-sm" step="0.01" value="{{ produit.prix_revient_ttc or 0 }}">
                         </div>
                         <div class="col-md-6">
-                            <label class="field-label">Prix dernier achat (€)
-                                <button type="button" class="btn btn-link btn-sm p-0 ms-2 text-info"
+                            <label class="field-label">Prix dernier achat (&euro;)
+                                <button type="button" class="btn btn-link btn-sm p-0 ms-2" style="color:var(--primary);"
                                         data-bs-toggle="modal" data-bs-target="#historiqueModal">
                                     <i class="fas fa-history"></i> Historique
                                 </button>
                             </label>
-                            <input type="number" name="prix_dernier_achat" class="form-control form-control-sm"
-                                   step="0.01" value="{{ produit.prix_dernier_achat or 0 }}">
+                            <input type="number" name="prix_dernier_achat" class="form-control form-control-sm" step="0.01" value="{{ produit.prix_dernier_achat or 0 }}">
                         </div>
                         <div class="col-md-6">
                             <label class="field-label">TVA (%)</label>
-                            <input type="number" name="tva" class="form-control form-control-sm"
-                                   step="0.1" value="{{ produit.tva or 20 }}">
+                            <input type="number" name="tva" class="form-control form-control-sm" step="0.1" value="{{ produit.tva or 20 }}">
                         </div>
                         <div class="col-md-6">
                             <label class="field-label">Tag</label>
-                            <input type="text" name="tag" class="form-control form-control-sm"
-                                   value="{{ produit.tag or '' }}">
+                            <input type="text" name="tag" class="form-control form-control-sm" value="{{ produit.tag or '' }}">
                         </div>
                         <div class="col-md-6">
                             <label class="field-label">Statut</label>
                             <select name="statut" class="form-select form-select-sm">
-                                <option value="Actif"    {% if produit.statut == 'Actif'    %}selected{% endif %}>Actif</option>
-                                <option value="Inactif"  {% if produit.statut == 'Inactif'  %}selected{% endif %}>Inactif</option>
-                                <option value="Archivé"  {% if produit.statut == 'Archivé'  %}selected{% endif %}>Archivé</option>
+                                <option value="Actif"   {% if produit.statut == 'Actif'   %}selected{% endif %}>Actif</option>
+                                <option value="Inactif" {% if produit.statut == 'Inactif' %}selected{% endif %}>Inactif</option>
+                                <option value="Archiv&eacute;" {% if produit.statut == 'Archiv\u00e9' %}selected{% endif %}>Archiv&eacute;</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
-                <!-- Type d'élément + Catégorie -->
-                <div class="field-card">
+                <div class="field-card animate-in animate-in-delay-2">
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="field-label d-flex justify-content-between align-items-center">
-                                Type d'élément
-                                <span>
-                                    <button type="button" class="btn btn-link btn-sm p-0 text-info"
-                                            data-bs-toggle="modal" data-bs-target="#typeModal">
-                                        <i class="fas fa-cog"></i>
-                                    </button>
-                                </span>
+                                Type d'&eacute;l&eacute;ment
+                                <button type="button" class="btn btn-link btn-sm p-0" style="color:var(--primary);" data-bs-toggle="modal" data-bs-target="#typeModal"><i class="fas fa-cog"></i></button>
                             </label>
                             <select name="type_element_id" class="form-select form-select-sm">
-                                <option value="">— Sélectionner —</option>
+                                <option value="">&mdash; S&eacute;lectionner &mdash;</option>
                                 {% for te in types_element %}
-                                <option value="{{ te.id }}"
-                                    {% if produit.type_element_id == te.id %}selected{% endif %}>
-                                    {{ te.nom }}
-                                </option>
+                                <option value="{{ te.id }}" {% if produit.type_element_id == te.id %}selected{% endif %}>{{ te.nom }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label class="field-label d-flex justify-content-between align-items-center">
-                                Catégorie produit
-                                <span>
-                                    <button type="button" class="btn btn-link btn-sm p-0 text-info"
-                                            data-bs-toggle="modal" data-bs-target="#catModal">
-                                        <i class="fas fa-cog"></i>
-                                    </button>
-                                </span>
+                                Cat&eacute;gorie produit
+                                <button type="button" class="btn btn-link btn-sm p-0" style="color:var(--primary);" data-bs-toggle="modal" data-bs-target="#catModal"><i class="fas fa-cog"></i></button>
                             </label>
                             <select name="categorie_id" class="form-select form-select-sm">
-                                <option value="">— Sélectionner —</option>
+                                <option value="">&mdash; S&eacute;lectionner &mdash;</option>
                                 {% for cat in categories %}
-                                <option value="{{ cat.id }}"
-                                    {% if produit.categorie_id == cat.id %}selected{% endif %}>
-                                    {{ cat.nom }}
-                                </option>
+                                <option value="{{ cat.id }}" {% if produit.categorie_id == cat.id %}selected{% endif %}>{{ cat.nom }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                     </div>
                 </div>
 
-                <!-- Locatie: Marque + Emplacement + Bloc + Rangée -->
-                <div class="field-card">
-                    <h6 class="fw-bold mb-3 text-muted small text-uppercase">
-                        <i class="fas fa-map-marker-alt me-1"></i> Localisation
+                <div class="field-card animate-in animate-in-delay-3">
+                    <h6 class="heading mb-3" style="color:var(--text-secondary); font-size:0.82rem;">
+                        <i class="fas fa-map-marker-alt me-1" style="color:var(--primary);"></i> Localisation
                     </h6>
                     <div class="row g-3">
                         <div class="col-md-3">
                             <label class="field-label">Marque</label>
-                            <input type="text" name="marque" class="form-control form-control-sm"
-                                   value="{{ produit.marque or '' }}">
+                            <input type="text" name="marque" class="form-control form-control-sm" value="{{ produit.marque or '' }}">
                         </div>
                         <div class="col-md-3">
                             <label class="field-label">Emplacement (Warehouse)</label>
-                            <input type="text" name="emplacement" class="form-control form-control-sm"
-                                   value="{{ produit.emplacement or '' }}">
+                            <input type="text" name="emplacement" class="form-control form-control-sm" value="{{ produit.emplacement or '' }}">
                         </div>
                         <div class="col-md-3">
                             <label class="field-label">Bloc</label>
-                            <input type="text" name="bloc" class="form-control form-control-sm"
-                                   value="{{ produit.bloc or '' }}">
+                            <input type="text" name="bloc" class="form-control form-control-sm" value="{{ produit.bloc or '' }}">
                         </div>
                         <div class="col-md-3">
-                            <label class="field-label">Rangée</label>
-                            <input type="text" name="rangee" class="form-control form-control-sm"
-                                   value="{{ produit.rangee or '' }}">
+                            <label class="field-label">Rang&eacute;e</label>
+                            <input type="text" name="rangee" class="form-control form-control-sm" value="{{ produit.rangee or '' }}">
                         </div>
                     </div>
                     {% if produit.emplacement or produit.bloc or produit.rangee %}
                     <div class="location-box mt-3">
-                        <i class="fas fa-warehouse me-2 text-info"></i>
-                        <strong>{{ produit.emplacement or '—' }}</strong>
-                        {% if produit.bloc %} › <span class="text-muted">{{ produit.bloc }}</span>{% endif %}
-                        {% if produit.rangee %} › <span class="text-muted">{{ produit.rangee }}</span>{% endif %}
+                        <i class="fas fa-warehouse me-2" style="color:var(--primary);"></i>
+                        <strong>{{ produit.emplacement or '&mdash;' }}</strong>
+                        {% if produit.bloc %} &rsaquo; <span style="color:var(--text-secondary);">{{ produit.bloc }}</span>{% endif %}
+                        {% if produit.rangee %} &rsaquo; <span style="color:var(--text-secondary);">{{ produit.rangee }}</span>{% endif %}
                     </div>
                     {% endif %}
                 </div>
 
             </form>
 
-            <!-- Prix de Vente : 3 tarifs standards + assignment par client -->
-            <div class="field-card">
-                <h6 class="fw-bold mb-3">
-                    <i class="fas fa-tags me-2 text-info"></i> Prix de Vente
+            <!-- Pricing section -->
+            <div class="field-card animate-in animate-in-delay-4">
+                <h6 class="heading mb-3" style="font-size:0.92rem;">
+                    <i class="fas fa-tags me-2" style="color:var(--primary);"></i> Prix de Vente
                 </h6>
 
-                <!-- 3 tarifs éditables sur le produit (dans editForm) -->
                 <div class="row g-3 mb-3">
                     <div class="col-md-4">
-                        <div class="p-3 rounded border" style="background:#f0f9ff; border-color:#0dcaf0 !important;">
+                        <div class="p-3 rounded-3" style="background:var(--info-light); border:1px solid rgba(12,123,147,0.2);">
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="fw-bold small text-info">Tarif 1</span>
-                                <span class="badge bg-info text-white small">Standard</span>
+                                <span class="fw-bold small" style="color:var(--primary);">Tarif 1</span>
+                                <span class="badge" style="background:var(--primary); color:white; font-size:0.65rem;">Standard</span>
                             </div>
                             <input type="number" form="editForm" name="prix_tarif_1"
                                    class="form-control form-control-sm fw-bold fs-5 border-0 bg-transparent text-center"
                                    step="0.01" value="{{ produit.prix_tarif_1 or 20 }}">
-                            <div class="text-center small text-muted">dh HT</div>
+                            <div class="text-center small" style="color:var(--text-tertiary);">dh HT</div>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="p-3 rounded border" style="background:#f0fff4; border-color:#22c55e !important;">
+                        <div class="p-3 rounded-3" style="background:var(--success-light); border:1px solid rgba(16,185,129,0.2);">
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="fw-bold small text-success">Tarif 2</span>
-                                <span class="badge bg-success text-white small">Préférentiel</span>
+                                <span class="fw-bold small" style="color:var(--success);">Tarif 2</span>
+                                <span class="badge bg-success" style="font-size:0.65rem;">Pr&eacute;f&eacute;rentiel</span>
                             </div>
                             <input type="number" form="editForm" name="prix_tarif_2"
                                    class="form-control form-control-sm fw-bold fs-5 border-0 bg-transparent text-center"
                                    step="0.01" value="{{ produit.prix_tarif_2 or 14.15 }}">
-                            <div class="text-center small text-muted">dh HT</div>
+                            <div class="text-center small" style="color:var(--text-tertiary);">dh HT</div>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="p-3 rounded border" style="background:#fefce8; border-color:#eab308 !important;">
+                        <div class="p-3 rounded-3" style="background:var(--warning-light); border:1px solid rgba(245,158,11,0.2);">
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="fw-bold small text-warning">Tarif 3</span>
-                                <span class="badge bg-warning text-dark small">Premium</span>
+                                <span class="fw-bold small" style="color:var(--warning);">Tarif 3</span>
+                                <span class="badge bg-warning text-dark" style="font-size:0.65rem;">Premium</span>
                             </div>
                             <input type="number" form="editForm" name="prix_tarif_3"
                                    class="form-control form-control-sm fw-bold fs-5 border-0 bg-transparent text-center"
                                    step="0.01" value="{{ produit.prix_tarif_3 or 75 }}">
-                            <div class="text-center small text-muted">dh HT</div>
+                            <div class="text-center small" style="color:var(--text-tertiary);">dh HT</div>
                         </div>
                     </div>
                 </div>
-                <p class="text-muted small mb-3">
+                <p style="color:var(--text-tertiary); font-size:0.8rem;" class="mb-3">
                     <i class="fas fa-info-circle me-1"></i>
-                    Modifiez les tarifs ci-dessus et cliquez sur <strong>Enregistrer</strong> pour les sauvegarder.
+                    Modifiez les tarifs ci-dessus et cliquez sur <strong>Enregistrer</strong>.
                 </p>
 
-                <!-- Prijzen gekoppeld aan klanten -->
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="fw-bold small text-muted text-uppercase">Prix par client</span>
-                    <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#addPrixModal">
-                        <i class="fas fa-plus me-1"></i> Assigner à un client
+                    <span class="heading" style="font-size:0.75rem; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.06em;">Prix par client</span>
+                    <button class="btn btn-sm btn-outline-info" style="border-radius:var(--radius-sm);" data-bs-toggle="modal" data-bs-target="#addPrixModal">
+                        <i class="fas fa-plus me-1"></i> Assigner
                     </button>
                 </div>
 
                 {% if prix_vente_list %}
+                <div style="border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border-light);">
                 <table class="table table-sm tab-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>Client / Hôpital</th>
-                            <th>Tarif appliqué</th>
-                            <th>Prix (dh HT)</th>
-                            <th style="width:80px;"></th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>Client / H&ocirc;pital</th><th>Tarif appliqu&eacute;</th><th>Prix (dh HT)</th><th style="width:80px;"></th></tr></thead>
                     <tbody>
                         {% for pv in prix_vente_list %}
                         <tr>
-                            <td><i class="fas fa-hospital-alt me-1 text-info"></i> {{ pv.client_nom }}</td>
+                            <td><i class="fas fa-hospital-alt me-1" style="color:var(--primary);"></i> {{ pv.client_nom }}</td>
                             <td>
-                                {% if pv.prix == produit.prix_tarif_1 %}
-                                    <span class="badge bg-info text-white">Tarif 1</span>
-                                {% elif pv.prix == produit.prix_tarif_2 %}
-                                    <span class="badge bg-success text-white">Tarif 2</span>
-                                {% elif pv.prix == produit.prix_tarif_3 %}
-                                    <span class="badge bg-warning text-dark">Tarif 3</span>
-                                {% else %}
-                                    <span class="badge bg-secondary text-white">Personnalisé</span>
-                                {% endif %}
+                                {% if pv.prix == produit.prix_tarif_1 %}<span class="badge" style="background:var(--primary); color:white;">Tarif 1</span>
+                                {% elif pv.prix == produit.prix_tarif_2 %}<span class="badge bg-success">Tarif 2</span>
+                                {% elif pv.prix == produit.prix_tarif_3 %}<span class="badge bg-warning text-dark">Tarif 3</span>
+                                {% else %}<span class="badge bg-secondary">Personnalis&eacute;</span>{% endif %}
                             </td>
                             <td>
-                                <form action="{{ url_for('update_prix_vente', pv_id=pv.id) }}" method="POST"
-                                      class="d-inline-flex align-items-center gap-2">
-                                    <input type="number" name="prix" class="form-control form-control-sm"
-                                           style="width:90px;" step="0.01" value="{{ pv.prix }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-success py-0">
-                                        <i class="fas fa-check"></i>
-                                    </button>
+                                <form action="{{ url_for('update_prix_vente', pv_id=pv.id) }}" method="POST" class="d-inline-flex align-items-center gap-2">
+                                    <input type="number" name="prix" class="form-control form-control-sm" style="width:90px;" step="0.01" value="{{ pv.prix }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-success py-0" style="border-radius:var(--radius-sm);"><i class="fas fa-check"></i></button>
                                 </form>
                             </td>
                             <td>
                                 <form action="{{ url_for('delete_prix_vente', pv_id=pv.id) }}" method="POST" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0"
-                                            onclick="return confirm('Supprimer ce prix ?')">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0" style="border-radius:var(--radius-sm);" onclick="return confirm('Supprimer ?')"><i class="fas fa-trash"></i></button>
                                 </form>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
                 {% else %}
-                <div class="text-muted small p-3 bg-light rounded">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Aucun client assigné. Utilisez le bouton <em>Assigner à un client</em> pour lier un tarif.
+                <div style="color:var(--text-tertiary); font-size:0.84rem; padding:16px; background:var(--bg); border-radius:var(--radius-md);">
+                    <i class="fas fa-info-circle me-1"></i> Aucun client assign&eacute;.
                 </div>
                 {% endif %}
             </div>
 
-            {# ══════════════════════════════════════════════
-               TAB 2 : PIÈCES-JOINTES
-            ══════════════════════════════════════════════ #}
+            {# ═══ TAB 2: PIECES-JOINTES ═══ #}
             {% elif current_tab == 'pieces-jointes' %}
-            <div class="field-card">
+            <div class="field-card animate-in">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0"><i class="fas fa-paperclip me-2 text-info"></i> Pièces-jointes</h5>
+                    <h5 class="heading mb-0"><i class="fas fa-paperclip me-2" style="color:var(--primary);"></i> Pi&egrave;ces-jointes</h5>
                 </div>
-                <div class="pj-placeholder border rounded">
-                    <i class="fas fa-file-upload fa-3x mb-3 opacity-25"></i>
-                    <p class="mb-0">Aucune pièce jointe</p>
-                    <small>Cette fonctionnalité sera disponible prochainement.</small>
+                <div class="pj-placeholder">
+                    <i class="fas fa-file-upload fa-3x mb-3" style="opacity:0.2;"></i>
+                    <p class="mb-0">Aucune pi&egrave;ce jointe</p>
+                    <small>Cette fonctionnalit&eacute; sera disponible prochainement.</small>
                 </div>
             </div>
 
-            {# ══════════════════════════════════════════════
-               TAB 3 : STOCK ACTUEL
-            ══════════════════════════════════════════════ #}
+            {# ═══ TAB 3: STOCK ACTUEL ═══ #}
             {% elif current_tab == 'stock-actuel' %}
-            <div class="field-card">
+            <div class="field-card animate-in">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h5 class="fw-bold mb-0"><i class="fas fa-boxes me-2 text-info"></i> Stock Actuel</h5>
-                    <span class="badge bg-info text-white fs-6 px-3 py-2">
-                        Total : {{ produit.stock_total }} unités
+                    <h5 class="heading mb-0"><i class="fas fa-boxes me-2" style="color:var(--primary);"></i> Stock Actuel</h5>
+                    <span class="badge px-3 py-2" style="background:var(--primary); color:white; font-family:'Outfit',sans-serif; font-size:0.88rem;">
+                        Total : {{ produit.stock_total }} unit&eacute;s
                     </span>
                 </div>
 
                 {% if stock_par_warehouse %}
-                <table class="table table-sm tab-table">
-                    <thead>
-                        <tr>
-                            <th>Warehouse / Emplacement</th>
-                            <th>Nb. Lots</th>
-                            <th>Quantité totale</th>
-                            <th>Statut</th>
-                        </tr>
-                    </thead>
+                <div style="border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border-light);">
+                <table class="table table-sm tab-table mb-0">
+                    <thead><tr><th>Warehouse</th><th>Nb. Lots</th><th>Quantit&eacute;</th><th>Statut</th></tr></thead>
                     <tbody>
                         {% for row in stock_par_warehouse %}
                         <tr>
-                            <td><i class="fas fa-warehouse me-2 text-info"></i>{{ row.warehouse or 'Non défini' }}</td>
+                            <td><i class="fas fa-warehouse me-2" style="color:var(--primary);"></i>{{ row.warehouse or 'Non d&eacute;fini' }}</td>
                             <td>{{ row.nb_lots }}</td>
                             <td>
-                                <span class="badge {% if row.total <= produit.stock_min_securite %}bg-danger{% else %}bg-success{% endif %}">
-                                    {{ row.total }}
-                                </span>
+                                <span class="badge {% if row.total <= produit.stock_min_securite %}bg-danger{% else %}bg-success{% endif %}">{{ row.total }}</span>
                             </td>
                             <td>
-                                {% if row.total <= produit.stock_min_securite %}
-                                    <span class="badge bg-danger">Stock critique</span>
-                                {% elif row.total <= produit.stock_min_securite * 2 %}
-                                    <span class="badge bg-warning text-dark">Stock faible</span>
-                                {% else %}
-                                    <span class="badge bg-success">Normal</span>
-                                {% endif %}
+                                {% if row.total <= produit.stock_min_securite %}<span class="badge bg-danger">Critique</span>
+                                {% elif row.total <= produit.stock_min_securite * 2 %}<span class="badge bg-warning text-dark">Faible</span>
+                                {% else %}<span class="badge bg-success">Normal</span>{% endif %}
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
-                {% else %}
-                <div class="text-center text-muted py-5">
-                    <i class="fas fa-box-open fa-3x mb-3 opacity-25 d-block"></i>
-                    Aucun stock enregistré pour ce produit.
-                    <br><small>Ajoutez des lots via l'onglet <strong>Lots</strong>.</small>
                 </div>
+                {% else %}
+                <div class="empty-state"><i class="fas fa-box-open"></i>Aucun stock. Ajoutez des lots via l'onglet <strong>Lots</strong>.</div>
                 {% endif %}
             </div>
 
-            {# ══════════════════════════════════════════════
-               TAB 4 : MOUVEMENT
-            ══════════════════════════════════════════════ #}
+            {# ═══ TAB 4: MOUVEMENT ═══ #}
             {% elif current_tab == 'mouvement' %}
-            <div class="field-card">
-                <h5 class="fw-bold mb-4"><i class="fas fa-exchange-alt me-2 text-info"></i> Mouvements de stock</h5>
-
+            <div class="field-card animate-in">
+                <h5 class="heading mb-4"><i class="fas fa-exchange-alt me-2" style="color:var(--primary);"></i> Mouvements de stock</h5>
                 {% if mouvements %}
-                <table class="table table-sm tab-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Type</th>
-                            <th>Quantité</th>
-                            <th>Référence</th>
-                            <th>Note</th>
-                        </tr>
-                    </thead>
+                <div style="border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border-light);">
+                <table class="table table-sm tab-table mb-0">
+                    <thead><tr><th>Date</th><th>Type</th><th>Quantit&eacute;</th><th>R&eacute;f&eacute;rence</th><th>Note</th></tr></thead>
                     <tbody>
                         {% for mvt in mouvements %}
                         <tr>
-                            <td class="text-muted small">{{ mvt.date_mvt or '—' }}</td>
+                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ mvt.date_mvt or '&mdash;' }}</td>
                             <td>
-                                {% if mvt.type_mvt == 'Entrée' %}
-                                    <span class="badge bg-success"><i class="fas fa-arrow-down me-1"></i>Entrée</span>
-                                {% elif mvt.type_mvt == 'Sortie' %}
-                                    <span class="badge bg-danger"><i class="fas fa-arrow-up me-1"></i>Sortie</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">{{ mvt.type_mvt }}</span>
-                                {% endif %}
+                                {% if mvt.type_mvt == 'Entr\u00e9e' %}<span class="badge bg-success"><i class="fas fa-arrow-down me-1"></i>Entr&eacute;e</span>
+                                {% elif mvt.type_mvt == 'Sortie' %}<span class="badge bg-danger"><i class="fas fa-arrow-up me-1"></i>Sortie</span>
+                                {% else %}<span class="badge bg-secondary">{{ mvt.type_mvt }}</span>{% endif %}
                             </td>
                             <td><strong>{{ mvt.quantite }}</strong></td>
-                            <td class="text-muted small">{{ mvt.reference or '—' }}</td>
-                            <td class="text-muted small">{{ mvt.note or '—' }}</td>
+                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ mvt.reference or '&mdash;' }}</td>
+                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ mvt.note or '&mdash;' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
-                {% else %}
-                <div class="text-center text-muted py-5">
-                    <i class="fas fa-exchange-alt fa-3x mb-3 opacity-25 d-block"></i>
-                    Aucun mouvement enregistré.
                 </div>
+                {% else %}
+                <div class="empty-state"><i class="fas fa-exchange-alt"></i>Aucun mouvement enregistr&eacute;.</div>
                 {% endif %}
             </div>
 
-            {# ══════════════════════════════════════════════
-               TAB 5 : LOTS
-            ══════════════════════════════════════════════ #}
+            {# ═══ TAB 5: LOTS ═══ #}
             {% elif current_tab == 'lots' %}
-            <div class="field-card">
+            <div class="field-card animate-in">
                 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                    <h5 class="fw-bold mb-0"><i class="fas fa-layer-group me-2 text-info"></i> Lots</h5>
+                    <h5 class="heading mb-0"><i class="fas fa-layer-group me-2" style="color:var(--primary);"></i> Lots</h5>
                     <div class="d-flex gap-2">
-                        <!-- Import via CSV -->
-                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importLotsModal">
-                            <i class="fas fa-file-csv me-1"></i> Importer CSV
+                        <button class="btn btn-sm btn-outline-secondary" style="border-radius:var(--radius-sm);" data-bs-toggle="modal" data-bs-target="#importLotsModal">
+                            <i class="fas fa-file-csv me-1"></i> CSV
                         </button>
-                        <!-- Nieuw lot toevoegen -->
-                        <button class="btn btn-sm btn-info text-white" data-bs-toggle="modal" data-bs-target="#addLotModal">
-                            <i class="fas fa-plus me-1"></i> Ajouter lot
+                        <button class="btn btn-sm btn-info text-white" style="border-radius:var(--radius-sm);" data-bs-toggle="modal" data-bs-target="#addLotModal">
+                            <i class="fas fa-plus me-1"></i> Ajouter
                         </button>
                     </div>
                 </div>
 
-                <!-- Totaal -->
                 <div class="d-flex gap-3 mb-3">
                     <div class="location-box flex-fill text-center">
-                        <div class="field-label">Total unités</div>
-                        <div class="fs-4 fw-bold text-info">
-                            {{ lots | sum(attribute='quantite') }}
-                        </div>
+                        <div class="field-label">Total unit&eacute;s</div>
+                        <div class="heading" style="font-size:1.4rem; color:var(--primary);">{{ lots | sum(attribute='quantite') }}</div>
                     </div>
                     <div class="location-box flex-fill text-center">
                         <div class="field-label">Nombre de lots</div>
-                        <div class="fs-4 fw-bold text-muted">{{ lots | length }}</div>
+                        <div class="heading" style="font-size:1.4rem; color:var(--text-secondary);">{{ lots | length }}</div>
                     </div>
                 </div>
 
                 {% if lots %}
-                <div class="table-responsive">
-                    <table class="table table-sm tab-table mb-0">
-                        <thead>
-                            <tr>
-                                <th>N° Lot</th>
-                                <th>Site</th>
-                                <th>Date Production</th>
-                                <th>Date Expiration</th>
-                                <th>Warehouse</th>
-                                <th>Bloc</th>
-                                <th>Rangée</th>
-                                <th>Qté</th>
-                                <th>Options</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for lot in lots %}
-                            <tr>
-                                <td class="fw-bold">{{ lot.lot_numero or '—' }}</td>
-                                <td>{{ lot.site or '—' }}</td>
-                                <td class="text-muted small">{{ lot.date_production or '—' }}</td>
-                                <td class="text-muted small">{{ lot.date_expiration or '—' }}</td>
-                                <td>
-                                    {% if lot.warehouse %}
-                                    <span class="badge bg-light text-dark border">
-                                        <i class="fas fa-warehouse me-1 text-info"></i>{{ lot.warehouse }}
-                                    </span>
-                                    {% else %}—{% endif %}
-                                </td>
-                                <td>{{ lot.bloc or '—' }}</td>
-                                <td>{{ lot.rangee or '—' }}</td>
-                                <td>
-                                    <span class="badge bg-info text-white">{{ lot.quantite }}</span>
-                                </td>
-                                <td>
-                                    <form action="{{ url_for('delete_lot', lot_id=lot.id) }}" method="POST" class="d-inline">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                onclick="return confirm('Supprimer ce lot ?')">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div style="border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border-light);">
+                <table class="table table-sm tab-table mb-0">
+                    <thead><tr><th>N&deg; Lot</th><th>Site</th><th>Production</th><th>Expiration</th><th>Warehouse</th><th>Bloc</th><th>Rang&eacute;e</th><th>Qt&eacute;</th><th>Options</th></tr></thead>
+                    <tbody>
+                        {% for lot in lots %}
+                        <tr>
+                            <td class="fw-bold">{{ lot.lot_numero or '&mdash;' }}</td>
+                            <td>{{ lot.site or '&mdash;' }}</td>
+                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ lot.date_production or '&mdash;' }}</td>
+                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ lot.date_expiration or '&mdash;' }}</td>
+                            <td>
+                                {% if lot.warehouse %}
+                                <span class="badge" style="background:var(--bg); color:var(--text); border:1px solid var(--border);">
+                                    <i class="fas fa-warehouse me-1" style="color:var(--primary);"></i>{{ lot.warehouse }}
+                                </span>
+                                {% else %}&mdash;{% endif %}
+                            </td>
+                            <td>{{ lot.bloc or '&mdash;' }}</td>
+                            <td>{{ lot.rangee or '&mdash;' }}</td>
+                            <td><span class="badge" style="background:var(--primary-light); color:var(--primary);">{{ lot.quantite }}</span></td>
+                            <td>
+                                <form action="{{ url_for('delete_lot', lot_id=lot.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:var(--radius-sm);" onclick="return confirm('Supprimer ?')"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
                 </div>
                 {% else %}
-                <div class="text-center text-muted py-5">
-                    <i class="fas fa-layer-group fa-3x mb-3 opacity-25 d-block"></i>
-                    Aucun lot enregistré. Ajoutez un lot ou importez via CSV.
-                </div>
+                <div class="empty-state"><i class="fas fa-layer-group"></i>Aucun lot. Ajoutez ou importez via CSV.</div>
                 {% endif %}
             </div>
 
             {% endif %}
-            {# ── Einde tabs ── #}
 
         </div>
-        {# ── Einde detail-main ── #}
 
-        <!-- ── Rechter tab-sidebar ── -->
+        <!-- Right tab sidebar -->
         <div class="detail-tabs-sidebar">
             <a href="{{ url_for('produit_detail', id=produit.id, tab='informations') }}"
                class="detail-tab {% if tab == 'informations' %}active{% endif %}">
-                <i class="fas fa-info-circle me-2"></i>Informations générales
+                <i class="fas fa-info-circle me-2"></i>Informations
             </a>
             <a href="{{ url_for('produit_detail', id=produit.id, tab='pieces-jointes') }}"
                class="detail-tab {% if tab == 'pieces-jointes' %}active{% endif %}">
-                <i class="fas fa-paperclip me-2"></i>Pièces-jointes
+                <i class="fas fa-paperclip me-2"></i>Pi&egrave;ces-jointes
             </a>
             <a href="{{ url_for('produit_detail', id=produit.id, tab='stock-actuel') }}"
                class="detail-tab {% if tab == 'stock-actuel' %}active{% endif %}">
@@ -652,117 +441,99 @@
         </div>
 
     </div>
-    {# ── Einde detail-wrapper ── #}
 
 </div>
-{# ── Einde main-content ── #}
 
-
-<!-- ══ MODALS ══════════════════════════════════════════════════════════════ -->
+<!-- ═══ MODALS ═══ -->
 
 <!-- Historique achats -->
 <div class="modal fade" id="historiqueModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header" style="background:#2c3e50; color:white;">
+        <div class="modal-content">
+            <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-history me-2"></i>Historique des achats</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-0">
                 {% if historique %}
                 <table class="table table-sm tab-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Prix (€)</th>
-                            <th>Fournisseur</th>
-                            <th>Quantité</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>Date</th><th>Prix (&euro;)</th><th>Fournisseur</th><th>Quantit&eacute;</th></tr></thead>
                     <tbody>
                         {% for h in historique %}
                         <tr>
-                            <td>{{ h.date_achat or '—' }}</td>
-                            <td><strong>{{ "%.2f"|format(h.prix) }} €</strong></td>
-                            <td>{{ h.fournisseur or '—' }}</td>
+                            <td>{{ h.date_achat or '&mdash;' }}</td>
+                            <td><strong>{{ "%.2f"|format(h.prix) }} &euro;</strong></td>
+                            <td>{{ h.fournisseur or '&mdash;' }}</td>
                             <td>{{ h.quantite }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
                 {% else %}
-                <div class="text-center text-muted py-4">
-                    <i class="fas fa-history fa-2x mb-2 d-block opacity-25"></i>
-                    Aucun historique disponible.
-                </div>
+                <div class="empty-state"><i class="fas fa-history"></i>Aucun historique.</div>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- Ajouter Prix Vente (3 tarifs) -->
+<!-- Ajouter Prix Vente -->
 <div class="modal fade" id="addPrixModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header" style="background:#2c3e50; color:white;">
-                <h5 class="modal-title"><i class="fas fa-tag me-2"></i>Assigner un prix à un client</h5>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-tag me-2"></i>Assigner un prix</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('add_prix_vente', id=produit.id) }}" method="POST">
-                <div class="modal-body p-4">
+                <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Client / Hôpital *</label>
+                        <label class="form-label fw-bold">Client / H&ocirc;pital *</label>
                         <select name="client_id" class="form-select" required>
-                            <option value="">— Sélectionner un client —</option>
+                            <option value="">&mdash; S&eacute;lectionner &mdash;</option>
                             {% for cl in clients %}
                             <option value="{{ cl.id }}">{{ cl.nom }} ({{ cl.type }})</option>
                             {% endfor %}
                         </select>
-                        <button type="button" class="btn btn-link btn-sm p-0 mt-1 text-info"
+                        <button type="button" class="btn btn-link btn-sm p-0 mt-1" style="color:var(--primary);"
                                 data-bs-toggle="modal" data-bs-target="#addClientModal">
-                            <i class="fas fa-plus me-1"></i> Ajouter un nouveau client
+                            <i class="fas fa-plus me-1"></i> Nouveau client
                         </button>
                     </div>
-
                     <label class="form-label fw-bold">Choisir un tarif</label>
                     <div class="row g-2 mb-3">
                         <div class="col-4">
-                            <button type="button" class="btn btn-outline-info w-100 py-3 tarif-btn"
+                            <button type="button" class="btn btn-outline-info w-100 py-3 tarif-btn" style="border-radius:var(--radius-md);"
                                     onclick="selectTarif({{ produit.prix_tarif_1 or 20 }}, this)">
-                                <div class="fw-bold">Tarif 1</div>
+                                <div class="fw-bold small">Tarif 1</div>
                                 <div class="fs-5 fw-bold">{{ "%.2f"|format(produit.prix_tarif_1 or 20) }} dh</div>
-                                <small class="text-muted">Standard</small>
+                                <small style="color:var(--text-tertiary);">Standard</small>
                             </button>
                         </div>
                         <div class="col-4">
-                            <button type="button" class="btn btn-outline-success w-100 py-3 tarif-btn"
+                            <button type="button" class="btn btn-outline-success w-100 py-3 tarif-btn" style="border-radius:var(--radius-md);"
                                     onclick="selectTarif({{ produit.prix_tarif_2 or 14.15 }}, this)">
-                                <div class="fw-bold">Tarif 2</div>
+                                <div class="fw-bold small">Tarif 2</div>
                                 <div class="fs-5 fw-bold">{{ "%.2f"|format(produit.prix_tarif_2 or 14.15) }} dh</div>
-                                <small class="text-muted">Préférentiel</small>
+                                <small style="color:var(--text-tertiary);">Pr&eacute;f&eacute;rentiel</small>
                             </button>
                         </div>
                         <div class="col-4">
-                            <button type="button" class="btn btn-outline-warning w-100 py-3 tarif-btn"
+                            <button type="button" class="btn btn-outline-warning w-100 py-3 tarif-btn" style="border-radius:var(--radius-md);"
                                     onclick="selectTarif({{ produit.prix_tarif_3 or 75 }}, this)">
-                                <div class="fw-bold">Tarif 3</div>
+                                <div class="fw-bold small">Tarif 3</div>
                                 <div class="fs-5 fw-bold">{{ "%.2f"|format(produit.prix_tarif_3 or 75) }} dh</div>
-                                <small class="text-muted">Premium</small>
+                                <small style="color:var(--text-tertiary);">Premium</small>
                             </button>
                         </div>
                     </div>
-
-                    <label class="form-label fw-bold">Prix appliqué (dh HT)</label>
-                    <input type="number" name="prix" id="prixInput"
-                           class="form-control fw-bold" step="0.01" value="{{ produit.prix_tarif_1 or 20 }}" required>
-                    <small class="text-muted">Vous pouvez aussi saisir un prix personnalisé.</small>
+                    <label class="form-label fw-bold">Prix appliqu&eacute; (dh HT)</label>
+                    <input type="number" name="prix" id="prixInput" class="form-control fw-bold" step="0.01" value="{{ produit.prix_tarif_1 or 20 }}" required>
+                    <small style="color:var(--text-tertiary);">Ou saisissez un prix personnalis&eacute;.</small>
                 </div>
-                <div class="modal-footer border-0">
+                <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-info text-white px-4 fw-bold">
-                        <i class="fas fa-save me-1"></i> Enregistrer
-                    </button>
+                    <button type="submit" class="btn btn-info text-white px-4 fw-bold"><i class="fas fa-save me-1"></i> Enregistrer</button>
                 </div>
             </form>
         </div>
@@ -772,9 +543,7 @@
 <script>
 function selectTarif(prix, btn) {
     document.getElementById('prixInput').value = prix;
-    document.querySelectorAll('.tarif-btn').forEach(b => {
-        b.classList.remove('active', 'btn-info', 'btn-success', 'btn-warning');
-    });
+    document.querySelectorAll('.tarif-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 }
 </script>
@@ -782,46 +551,24 @@ function selectTarif(prix, btn) {
 <!-- Ajouter Client -->
 <div class="modal fade" id="addClientModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header" style="background:#2c3e50; color:white;">
+        <div class="modal-content">
+            <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-hospital me-2"></i>Nouveau Client</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('add_client') }}" method="POST">
                 <input type="hidden" name="produit_id" value="{{ produit.id }}">
-                <div class="modal-body p-4">
+                <div class="modal-body">
                     <div class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label fw-bold">Nom du client *</label>
-                            <input type="text" name="nom" class="form-control" placeholder="Ex: CHU Ibn Sina" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Type</label>
-                            <select name="type" class="form-select">
-                                <option value="Hôpital">Hôpital</option>
-                                <option value="Clinique">Clinique</option>
-                                <option value="Cabinet">Cabinet médical</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Téléphone</label>
-                            <input type="text" name="telephone" class="form-control" placeholder="Ex: +212 537 000 000">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-bold">Adresse</label>
-                            <input type="text" name="adresse" class="form-control" placeholder="Ex: Avenue Ibn Sina">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Ville</label>
-                            <input type="text" name="ville" class="form-control" placeholder="Ex: Rabat">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Email</label>
-                            <input type="email" name="email" class="form-control" placeholder="Ex: contact@chu.ma">
-                        </div>
+                        <div class="col-12"><label class="form-label fw-bold">Nom *</label><input type="text" name="nom" class="form-control" placeholder="Ex: CHU Ibn Sina" required></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Type</label><select name="type" class="form-select"><option value="H&ocirc;pital">H&ocirc;pital</option><option value="Clinique">Clinique</option><option value="Cabinet">Cabinet</option></select></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">T&eacute;l&eacute;phone</label><input type="text" name="telephone" class="form-control" placeholder="+212 537 000 000"></div>
+                        <div class="col-12"><label class="form-label fw-bold">Adresse</label><input type="text" name="adresse" class="form-control" placeholder="Avenue Ibn Sina"></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Ville</label><input type="text" name="ville" class="form-control" placeholder="Rabat"></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Email</label><input type="email" name="email" class="form-control" placeholder="contact@chu.ma"></div>
                     </div>
                 </div>
-                <div class="modal-footer border-0">
+                <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
                     <button type="submit" class="btn btn-info text-white px-4">Enregistrer</button>
                 </div>
@@ -830,15 +577,15 @@ function selectTarif(prix, btn) {
     </div>
 </div>
 
-<!-- Gérer Types d'élément -->
+<!-- Types d'element -->
 <div class="modal fade" id="typeModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header" style="background:#2c3e50; color:white;">
-                <h5 class="modal-title"><i class="fas fa-list me-2"></i>Types d'élément</h5>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-list me-2"></i>Types d'&eacute;l&eacute;ment</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-4">
+            <div class="modal-body">
                 <form action="{{ url_for('add_type_element') }}" method="POST" class="d-flex gap-2 mb-3">
                     <input type="hidden" name="produit_id" value="{{ produit.id }}">
                     <input type="text" name="nom" class="form-control form-control-sm" placeholder="Nouveau type..." required>
@@ -846,14 +593,11 @@ function selectTarif(prix, btn) {
                 </form>
                 <ul class="list-group list-group-flush">
                     {% for te in types_element %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2" style="border-color:var(--border-light);">
                         {{ te.nom }}
                         <form action="{{ url_for('delete_type_element', te_id=te.id) }}" method="POST" class="d-inline">
                             <input type="hidden" name="produit_id" value="{{ produit.id }}">
-                            <button type="submit" class="btn btn-sm btn-link text-danger p-0"
-                                    onclick="return confirm('Supprimer ce type ?')">
-                                <i class="fas fa-times"></i>
-                            </button>
+                            <button type="submit" class="btn btn-sm btn-link p-0" style="color:var(--danger);" onclick="return confirm('Supprimer ?')"><i class="fas fa-times"></i></button>
                         </form>
                     </li>
                     {% endfor %}
@@ -863,30 +607,27 @@ function selectTarif(prix, btn) {
     </div>
 </div>
 
-<!-- Gérer Catégories -->
+<!-- Categories -->
 <div class="modal fade" id="catModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header" style="background:#2c3e50; color:white;">
-                <h5 class="modal-title"><i class="fas fa-tags me-2"></i>Catégories produit</h5>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-tags me-2"></i>Cat&eacute;gories</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-4">
+            <div class="modal-body">
                 <form action="{{ url_for('add_category') }}" method="POST" class="d-flex gap-2 mb-3">
                     <input type="hidden" name="produit_id" value="{{ produit.id }}">
-                    <input type="text" name="nom" class="form-control form-control-sm" placeholder="Nouvelle catégorie..." required>
+                    <input type="text" name="nom" class="form-control form-control-sm" placeholder="Nouvelle cat&eacute;gorie..." required>
                     <button type="submit" class="btn btn-sm btn-info text-white px-3">Ajouter</button>
                 </form>
                 <ul class="list-group list-group-flush">
                     {% for cat in categories %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2" style="border-color:var(--border-light);">
                         {{ cat.nom }}
                         <form action="{{ url_for('delete_category', cat_id=cat.id) }}" method="POST" class="d-inline">
                             <input type="hidden" name="produit_id" value="{{ produit.id }}">
-                            <button type="submit" class="btn btn-sm btn-link text-danger p-0"
-                                    onclick="return confirm('Supprimer cette catégorie ?')">
-                                <i class="fas fa-times"></i>
-                            </button>
+                            <button type="submit" class="btn btn-sm btn-link p-0" style="color:var(--danger);" onclick="return confirm('Supprimer ?')"><i class="fas fa-times"></i></button>
                         </form>
                     </li>
                     {% endfor %}
@@ -899,76 +640,40 @@ function selectTarif(prix, btn) {
 <!-- Ajouter Lot -->
 <div class="modal fade" id="addLotModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header" style="background:#2c3e50; color:white;">
+        <div class="modal-content">
+            <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Nouveau Lot</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('add_lot', id=produit.id) }}" method="POST">
-                <div class="modal-body p-4">
+                <div class="modal-body">
                     <div class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">N° Lot</label>
-                            <input type="text" name="lot_numero" class="form-control form-control-sm" placeholder="Ex: LOT-001">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Site</label>
-                            <input type="text" name="site" class="form-control form-control-sm" placeholder="Ex: Site A">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Quantité</label>
-                            <input type="number" name="quantite" class="form-control form-control-sm" value="0" min="0">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Date de Production</label>
-                            <input type="date" name="date_production" class="form-control form-control-sm">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Date d'Expiration</label>
-                            <input type="date" name="date_expiration" class="form-control form-control-sm">
-                        </div>
-                        <div class="col-12"><hr class="my-1"></div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Warehouse</label>
+                        <div class="col-md-4"><label class="form-label fw-bold">N&deg; Lot</label><input type="text" name="lot_numero" class="form-control form-control-sm" placeholder="LOT-001"></div>
+                        <div class="col-md-4"><label class="form-label fw-bold">Site</label><input type="text" name="site" class="form-control form-control-sm" placeholder="Site A"></div>
+                        <div class="col-md-4"><label class="form-label fw-bold">Quantit&eacute;</label><input type="number" name="quantite" class="form-control form-control-sm" value="0" min="0"></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Date Production</label><input type="date" name="date_production" class="form-control form-control-sm"></div>
+                        <div class="col-md-6"><label class="form-label fw-bold">Date Expiration</label><input type="date" name="date_expiration" class="form-control form-control-sm"></div>
+                        <div class="col-12"><hr class="my-1" style="border-color:var(--border-light);"></div>
+                        <div class="col-md-4"><label class="form-label fw-bold">Warehouse</label>
                             <select name="warehouse" class="form-select form-select-sm">
-                                <option value="">— Sélectionner —</option>
-                                <option value="Babylon">Babylon</option>
-                                <option value="Entrepôt A">Entrepôt A</option>
-                                <option value="Entrepôt B">Entrepôt B</option>
-                                <option value="Entrepôt C">Entrepôt C</option>
-                                <option value="Dépôt Principal">Dépôt Principal</option>
+                                <option value="">&mdash;</option><option value="Babylon">Babylon</option>
+                                <option value="Entrep&ocirc;t A">Entrep&ocirc;t A</option><option value="Entrep&ocirc;t B">Entrep&ocirc;t B</option>
+                                <option value="Entrep&ocirc;t C">Entrep&ocirc;t C</option><option value="D&eacute;p&ocirc;t Principal">D&eacute;p&ocirc;t Principal</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Bloc</label>
+                        <div class="col-md-4"><label class="form-label fw-bold">Bloc</label>
                             <select name="bloc" class="form-select form-select-sm">
-                                <option value="">— Sélectionner —</option>
-                                <option value="Bloc 1">Bloc 1</option>
-                                <option value="Bloc 2">Bloc 2</option>
-                                <option value="Bloc 3">Bloc 3</option>
-                                <option value="Bloc 4">Bloc 4</option>
-                                <option value="Bloc 5">Bloc 5</option>
+                                <option value="">&mdash;</option>{% for i in range(1,6) %}<option value="Bloc {{ i }}">Bloc {{ i }}</option>{% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Rangée</label>
+                        <div class="col-md-4"><label class="form-label fw-bold">Rang&eacute;e</label>
                             <select name="rangee" class="form-select form-select-sm">
-                                <option value="">— Sélectionner —</option>
-                                <option value="Rangée 1">Rangée 1</option>
-                                <option value="Rangée 2">Rangée 2</option>
-                                <option value="Rangée 3">Rangée 3</option>
-                                <option value="Rangée 4">Rangée 4</option>
-                                <option value="Rangée 5">Rangée 5</option>
-                                <option value="Rangée 6">Rangée 6</option>
-                                <option value="Rangée 7">Rangée 7</option>
-                                <option value="Rangée 8">Rangée 8</option>
-                                <option value="Rangée 9">Rangée 9</option>
-                                <option value="Rangée 10">Rangée 10</option>
+                                <option value="">&mdash;</option>{% for i in range(1,11) %}<option value="Rang&eacute;e {{ i }}">Rang&eacute;e {{ i }}</option>{% endfor %}
                             </select>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0">
+                <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
                     <button type="submit" class="btn btn-info text-white px-4">Enregistrer</button>
                 </div>
@@ -980,24 +685,21 @@ function selectTarif(prix, btn) {
 <!-- Importer Lots CSV -->
 <div class="modal fade" id="importLotsModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header" style="background:#2c3e50; color:white;">
+        <div class="modal-content">
+            <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-file-csv me-2"></i>Importer lots via CSV</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('import_lots_csv', id=produit.id) }}" method="POST" enctype="multipart/form-data">
-                <div class="modal-body p-4">
-                    <div class="alert alert-info small">
-                        <strong>Format CSV attendu :</strong><br>
-                        <code>lot_numero, site, date_production, date_expiration, warehouse, bloc, rangee, quantite</code>
-                        <br><br>
-                        <strong>Exemple :</strong><br>
-                        <code>LOT-001, Site A, 2024-01-15, 2026-01-15, Babylon, Bloc 1, Rangée 2, 50</code>
+                <div class="modal-body">
+                    <div class="alert" style="background:var(--info-light); color:var(--primary-dark); border:none; border-radius:var(--radius-md); font-size:0.85rem;">
+                        <strong>Format CSV :</strong><br>
+                        <code style="font-size:0.8rem;">lot_numero, site, date_production, date_expiration, warehouse, bloc, rangee, quantite</code>
                     </div>
                     <label class="form-label fw-bold">Fichier CSV</label>
                     <input type="file" name="csv_file" class="form-control" accept=".csv" required>
                 </div>
-                <div class="modal-footer border-0">
+                <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
                     <button type="submit" class="btn btn-info text-white px-4">Importer</button>
                 </div>

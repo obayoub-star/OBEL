@@ -30,6 +30,29 @@ def migrate_db():
         ('clients', 'ville',     'TEXT'),
         ('clients', 'telephone', 'TEXT'),
         ('clients', 'email',     'TEXT'),
+        ('clients', 'code_client',          'TEXT'),
+        ('clients', 'ice',                  'TEXT'),
+        ('clients', 'identifiant_fiscal',   'TEXT'),
+        ('clients', 'code_postal',          'TEXT'),
+        ('clients', 'region',               'TEXT'),
+        ('clients', 'pays',                 'TEXT DEFAULT "Maroc"'),
+        ('clients', 'gsm',                  'TEXT'),
+        ('clients', 'contact',              'TEXT'),
+        ('clients', 'tarification',         'TEXT DEFAULT "T1"'),
+        ('clients', 'categorie_client',     'TEXT'),
+        ('clients', 'latitude',             'TEXT'),
+        ('clients', 'longitude',            'TEXT'),
+        ('clients', 'adresse_facturation',  'TEXT'),
+        ('clients', 'ville_facturation',    'TEXT'),
+        ('clients', 'region_facturation',   'TEXT'),
+        ('clients', 'code_postal_facturation', 'TEXT'),
+        ('clients', 'pays_facturation',     'TEXT'),
+        ('clients', 'adresse_livraison',    'TEXT'),
+        ('clients', 'ville_livraison',      'TEXT'),
+        ('clients', 'region_livraison',     'TEXT'),
+        ('clients', 'code_postal_livraison','TEXT'),
+        ('clients', 'pays_livraison',       'TEXT'),
+        ('clients', 'actif',                'INTEGER DEFAULT 1'),
     ]
     for table, col, col_type in migrations:
         try:
@@ -702,6 +725,216 @@ def delete_category(cat_id):
     return redirect(url_for('produit_detail', id=produit_id, tab='informations'))
 
 
+def _generate_client_code(conn):
+    """Generate next client code like LC0001, LC0002, ..."""
+    row = conn.execute("SELECT code_client FROM clients WHERE code_client IS NOT NULL ORDER BY code_client DESC LIMIT 1").fetchone()
+    if row and row['code_client']:
+        try:
+            num = int(row['code_client'].replace('LC', '')) + 1
+        except ValueError:
+            num = conn.execute("SELECT COUNT(*) AS n FROM clients").fetchone()['n'] + 1
+    else:
+        num = 1
+    return f"LC{num:04d}"
+
+
+# ─── CLIENTS : LIST ─────────────────────────────────────────────────────────
+@app.route('/clients')
+@login_required
+def clients_list():
+    conn   = get_db_connection()
+    search = request.args.get('search', '').strip()
+    query  = 'SELECT * FROM clients'
+    params = []
+    if search:
+        query += ' WHERE (nom LIKE ? OR code_client LIKE ? OR email LIKE ? OR telephone LIKE ? OR ville LIKE ? OR ice LIKE ?)'
+        params = [f'%{search}%'] * 6
+    query += ' ORDER BY nom'
+    clients = conn.execute(query, params).fetchall()
+    conn.close()
+    return render_template('clients.html', clients=clients, search_query=search)
+
+
+# ─── CLIENTS : ADD (page) ───────────────────────────────────────────────────
+@app.route('/clients/new', methods=['GET', 'POST'])
+@login_required
+def new_client():
+    if request.method == 'POST':
+        nom = request.form.get('nom', '').strip()
+        if nom:
+            conn = get_db_connection()
+            code = _generate_client_code(conn)
+            conn.execute('''
+                INSERT INTO clients
+                    (nom, code_client, type, adresse, ville, telephone, email,
+                     ice, identifiant_fiscal, code_postal, region, pays, gsm, contact,
+                     tarification, categorie_client, latitude, longitude,
+                     adresse_facturation, ville_facturation, region_facturation,
+                     code_postal_facturation, pays_facturation,
+                     adresse_livraison, ville_livraison, region_livraison,
+                     code_postal_livraison, pays_livraison, actif)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)
+            ''', (
+                nom, code,
+                request.form.get('type', 'Hôpital'),
+                request.form.get('adresse', ''),
+                request.form.get('ville', ''),
+                request.form.get('telephone', ''),
+                request.form.get('email', ''),
+                request.form.get('ice', ''),
+                request.form.get('identifiant_fiscal', ''),
+                request.form.get('code_postal', ''),
+                request.form.get('region', ''),
+                request.form.get('pays', 'Maroc'),
+                request.form.get('gsm', ''),
+                request.form.get('contact', ''),
+                request.form.get('tarification', 'T1'),
+                request.form.get('categorie_client', ''),
+                request.form.get('latitude', ''),
+                request.form.get('longitude', ''),
+                request.form.get('adresse_facturation', ''),
+                request.form.get('ville_facturation', ''),
+                request.form.get('region_facturation', ''),
+                request.form.get('code_postal_facturation', ''),
+                request.form.get('pays_facturation', ''),
+                request.form.get('adresse_livraison', ''),
+                request.form.get('ville_livraison', ''),
+                request.form.get('region_livraison', ''),
+                request.form.get('code_postal_livraison', ''),
+                request.form.get('pays_livraison', ''),
+            ))
+            conn.commit()
+            new_id = conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
+            conn.close()
+            return redirect(url_for('client_detail', id=new_id))
+        return redirect(url_for('new_client'))
+    return render_template('client_detail.html', client=None, is_new=True)
+
+
+# ─── CLIENTS : DETAIL / EDIT ────────────────────────────────────────────────
+@app.route('/clients/<int:id>')
+@login_required
+def client_detail(id):
+    conn   = get_db_connection()
+    tab    = request.args.get('tab', 'general')
+    client = conn.execute('SELECT * FROM clients WHERE id=?', (id,)).fetchone()
+    if not client:
+        conn.close()
+        return redirect(url_for('clients_list'))
+    # Get invoices for this client
+    factures = conn.execute('''
+        SELECT * FROM factures WHERE client_id=? ORDER BY date_facture DESC
+    ''', (id,)).fetchall()
+    # Get pricing assignments
+    prix_vente = conn.execute('''
+        SELECT pv.*, p.nom AS produit_nom, p.reference AS produit_ref
+        FROM prix_vente pv JOIN produits p ON pv.produit_id = p.id
+        WHERE pv.client_id=? ORDER BY p.nom
+    ''', (id,)).fetchall()
+    conn.close()
+    return render_template('client_detail.html', client=client, is_new=False,
+                           tab=tab, factures=factures, prix_vente=prix_vente)
+
+
+@app.route('/clients/<int:id>/edit', methods=['POST'])
+@login_required
+def edit_client(id):
+    conn = get_db_connection()
+    conn.execute('''
+        UPDATE clients SET
+            nom=?, type=?, adresse=?, ville=?, telephone=?, email=?,
+            ice=?, identifiant_fiscal=?, code_postal=?, region=?, pays=?,
+            gsm=?, contact=?, tarification=?, categorie_client=?,
+            latitude=?, longitude=?,
+            adresse_facturation=?, ville_facturation=?, region_facturation=?,
+            code_postal_facturation=?, pays_facturation=?,
+            adresse_livraison=?, ville_livraison=?, region_livraison=?,
+            code_postal_livraison=?, pays_livraison=?
+        WHERE id=?
+    ''', (
+        request.form.get('nom', '').strip(),
+        request.form.get('type', 'Hôpital'),
+        request.form.get('adresse', ''),
+        request.form.get('ville', ''),
+        request.form.get('telephone', ''),
+        request.form.get('email', ''),
+        request.form.get('ice', ''),
+        request.form.get('identifiant_fiscal', ''),
+        request.form.get('code_postal', ''),
+        request.form.get('region', ''),
+        request.form.get('pays', 'Maroc'),
+        request.form.get('gsm', ''),
+        request.form.get('contact', ''),
+        request.form.get('tarification', 'T1'),
+        request.form.get('categorie_client', ''),
+        request.form.get('latitude', ''),
+        request.form.get('longitude', ''),
+        request.form.get('adresse_facturation', ''),
+        request.form.get('ville_facturation', ''),
+        request.form.get('region_facturation', ''),
+        request.form.get('code_postal_facturation', ''),
+        request.form.get('pays_facturation', ''),
+        request.form.get('adresse_livraison', ''),
+        request.form.get('ville_livraison', ''),
+        request.form.get('region_livraison', ''),
+        request.form.get('code_postal_livraison', ''),
+        request.form.get('pays_livraison', ''),
+        id,
+    ))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('client_detail', id=id, tab=request.form.get('tab', 'general')))
+
+
+@app.route('/clients/<int:id>/toggle', methods=['POST'])
+@login_required
+def toggle_client(id):
+    conn = get_db_connection()
+    client = conn.execute('SELECT actif FROM clients WHERE id=?', (id,)).fetchone()
+    if client:
+        conn.execute('UPDATE clients SET actif=? WHERE id=?', (0 if client['actif'] else 1, id))
+        conn.commit()
+    conn.close()
+    return redirect(url_for('clients_list'))
+
+
+@app.route('/clients/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_client(id):
+    conn = get_db_connection()
+    conn.execute('DELETE FROM prix_vente WHERE client_id=?', (id,))
+    conn.execute('DELETE FROM clients WHERE id=?', (id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('clients_list'))
+
+
+@app.route('/clients/import', methods=['POST'])
+@login_required
+def import_clients():
+    f = request.files.get('csv_file')
+    if not f:
+        return redirect(url_for('clients_list'))
+    stream = io.StringIO(f.read().decode('utf-8-sig'))
+    reader = csv.reader(stream, delimiter=',')
+    conn   = get_db_connection()
+    for row in reader:
+        if not row or not row[0].strip():
+            continue
+        nom = row[0].strip()
+        code = _generate_client_code(conn)
+        conn.execute(
+            'INSERT INTO clients (nom, code_client, telephone, email, ville, actif) VALUES (?,?,?,?,?,1)',
+            (nom, code, row[1].strip() if len(row) > 1 else '',
+             row[2].strip() if len(row) > 2 else '',
+             row[3].strip() if len(row) > 3 else '')
+        )
+        conn.commit()
+    conn.close()
+    return redirect(url_for('clients_list'))
+
+
+# ─── CLIENTS : ADD (quick, from product page) ───────────────────────────────
 @app.route('/clients/add', methods=['POST'])
 @login_required
 def add_client():
@@ -709,16 +942,18 @@ def add_client():
     produit_id = request.form.get('produit_id')
     if nom:
         conn = get_db_connection()
+        code = _generate_client_code(conn)
         conn.execute(
-            'INSERT INTO clients (nom, type, adresse, ville, telephone, email) VALUES (?,?,?,?,?,?)',
-            (nom, request.form.get('type', 'Hôpital'),
+            'INSERT INTO clients (nom, code_client, type, adresse, ville, telephone, email, tarification, actif) VALUES (?,?,?,?,?,?,?,?,1)',
+            (nom, code, request.form.get('type', 'Hôpital'),
              request.form.get('adresse', ''), request.form.get('ville', ''),
-             request.form.get('telephone', ''), request.form.get('email', ''))
+             request.form.get('telephone', ''), request.form.get('email', ''),
+             request.form.get('tarification', 'T1'))
         )
         conn.commit()
         conn.close()
     return redirect(url_for('produit_detail', id=produit_id, tab='informations') if produit_id
-                    else url_for('producten'))
+                    else url_for('clients_list'))
 
 
 # ─── DELETE PRODUIT ───────────────────────────────────────────────────────────

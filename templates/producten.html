@@ -13,44 +13,45 @@
 {% include '_sidebar.html' %}
 
 <div class="main-content">
-    <!-- Top bar -->
-    <div class="p-3 bg-white border-bottom">
+    <!-- Top bar with tabs -->
+    <div class="bg-white border-bottom px-4 pt-3">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <div class="d-flex gap-4 ms-3">
-                <a href="{{ url_for('producten') }}" class="text-decoration-none text-dark fw-bold border-bottom border-primary border-3 pb-2">Produits</a>
-                <a href="#" class="text-decoration-none text-muted">Transfert de stock</a>
-                <a href="#" class="text-decoration-none text-muted">Inventaire</a>
-                <a href="#" class="text-decoration-none text-muted">Bon de Perte</a>
+            <div class="d-flex gap-4 ms-1">
+                <a href="{{ url_for('producten') }}" class="text-decoration-none fw-bold heading" style="color:var(--text); border-bottom:2px solid var(--primary); padding-bottom:10px; font-size:0.88rem;">Produits</a>
+                <a href="#" class="text-decoration-none" style="color:var(--text-tertiary); padding-bottom:10px; font-size:0.88rem;">Transfert de stock</a>
+                <a href="#" class="text-decoration-none" style="color:var(--text-tertiary); padding-bottom:10px; font-size:0.88rem;">Inventaire</a>
+                <a href="#" class="text-decoration-none" style="color:var(--text-tertiary); padding-bottom:10px; font-size:0.88rem;">Bon de Perte</a>
             </div>
-            <div class="d-flex gap-2 pe-3">
-                <button class="btn btn-info text-white fw-bold" data-bs-toggle="modal" data-bs-target="#addModal">
+            <div class="d-flex gap-2 pe-1">
+                <button class="btn btn-info text-white fw-bold" style="font-size:0.84rem; border-radius:var(--radius-sm);" data-bs-toggle="modal" data-bs-target="#addModal">
                     <i class="fas fa-plus me-1"></i> Ajouter Produit
                 </button>
-                <button class="btn btn-outline-info fw-bold" data-bs-toggle="modal" data-bs-target="#importModal">
-                    <i class="fas fa-file-csv me-1"></i> Importer produits
+                <button class="btn btn-outline-info fw-bold" style="font-size:0.84rem; border-radius:var(--radius-sm);" data-bs-toggle="modal" data-bs-target="#importModal">
+                    <i class="fas fa-file-csv me-1"></i> Importer
                 </button>
             </div>
         </div>
-        <div class="d-flex gap-2 ms-3">
-            <button class="btn btn-info text-white btn-sm px-3">Tous</button>
-            <button class="btn btn-outline-secondary btn-sm px-3">Service</button>
-            <button class="btn btn-outline-secondary btn-sm px-3">Produits</button>
-            <button class="btn btn-outline-secondary btn-sm px-3">Matière Première</button>
+        <div class="d-flex gap-2 ms-1 pb-3">
+            <button class="btn btn-info text-white btn-sm px-3" style="border-radius:var(--radius-full); font-size:0.76rem;">Tous</button>
+            <button class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-full); font-size:0.76rem; border-color:var(--border);">Service</button>
+            <button class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-full); font-size:0.76rem; border-color:var(--border);">Produits</button>
+            <button class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-full); font-size:0.76rem; border-color:var(--border);">Mati&egrave;re Premi&egrave;re</button>
         </div>
     </div>
 
     <div class="content-padding">
-        <!-- Zoekbalk + acties -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div class="position-relative" style="width: 340px;">
+        <!-- Search bar + actions -->
+        <div class="d-flex justify-content-between align-items-center mb-3 animate-in">
+            <div class="position-relative" style="width: 360px;">
                 <form action="{{ url_for('producten') }}" method="GET" id="searchForm">
                     <input type="hidden" name="sorts" value="{{ sorts_str }}">
-                    <span class="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted">
+                    <span class="position-absolute top-50 start-0 translate-middle-y ms-3" style="color:var(--text-tertiary);">
                         <i class="fas fa-search"></i>
                     </span>
                     <input type="text" name="search" id="searchInput"
-                           class="form-control ps-5 border-0 shadow-sm"
-                           placeholder="Nom, référence ou marque..."
+                           class="form-control ps-5"
+                           style="border:none; background:var(--surface); box-shadow:var(--shadow-sm); border-radius:var(--radius-full); font-size:0.88rem;"
+                           placeholder="Nom, r&eacute;f&eacute;rence ou marque..."
                            value="{{ search_query or '' }}"
                            oninput="document.getElementById('searchForm').submit()">
                 </form>
@@ -58,74 +59,65 @@
 
             {% if sorts_str %}
             <div class="d-flex align-items-center gap-2">
-                <small class="text-muted">Tri actif :</small>
-                <span class="badge bg-info text-white">{{ sorts_str.replace('asc','↑').replace('desc','↓') }}</span>
-                <a href="{{ url_for('producten', search=search_query) }}" class="btn btn-sm btn-outline-secondary">
-                    <i class="fas fa-times"></i> Réinitialiser tri
+                <small style="color:var(--text-tertiary);">Tri actif :</small>
+                <span class="badge" style="background:var(--primary-light); color:var(--primary);">{{ sorts_str.replace('asc','&uarr;').replace('desc','&darr;') }}</span>
+                <a href="{{ url_for('producten', search=search_query) }}" class="btn btn-sm btn-outline-secondary" style="border-radius:var(--radius-full);">
+                    <i class="fas fa-times"></i> R&eacute;initialiser
                 </a>
             </div>
             {% endif %}
 
             <div class="d-flex gap-2">
-                <a href="{{ url_for('producten', search=search_query) }}" class="btn btn-white bg-white shadow-sm">
+                <a href="{{ url_for('producten', search=search_query) }}" class="btn btn-white btn-sm" style="border-radius:var(--radius-full);">
                     <i class="fas fa-sync-alt me-1"></i> Actualiser
                 </a>
             </div>
         </div>
 
-        <!-- Tabel -->
-        <div class="table-container shadow-sm">
+        <!-- Table -->
+        <div class="table-container">
             <table class="table align-middle mb-0 table-hover">
-                <thead style="background-color: #2c3e50; color: white;">
+                <thead>
                     <tr>
                         <th class="ps-4" style="width:40px;"><input type="checkbox" class="form-check-input"></th>
-
                         <th>
                             <a href="{{ url_for('producten', search=search_query, sorts=sort_urls['reference']) }}"
                                class="text-white text-decoration-none">
-                                Référence # <i class="fas {{ sort_icons['reference'] }} ms-1 small"></i>
+                                R&eacute;f&eacute;rence # <i class="fas {{ sort_icons['reference'] }} ms-1 small"></i>
                             </a>
                         </th>
-
                         <th>
                             <a href="{{ url_for('producten', search=search_query, sorts=sort_urls['nom']) }}"
                                class="text-white text-decoration-none">
                                 Nom <i class="fas {{ sort_icons['nom'] }} ms-1 small"></i>
                             </a>
                         </th>
-
                         <th>
                             <a href="{{ url_for('producten', search=search_query, sorts=sort_urls['prix_achat']) }}"
                                class="text-white text-decoration-none">
                                 Prix achat <i class="fas {{ sort_icons['prix_achat'] }} ms-1 small"></i>
                             </a>
                         </th>
-
                         <th>Prix Vente</th>
-
                         <th>
                             <a href="{{ url_for('producten', search=search_query, sorts=sort_urls['stock_total']) }}"
                                class="text-white text-decoration-none">
                                 Stock Total <i class="fas {{ sort_icons['stock_total'] }} ms-1 small"></i>
                             </a>
                         </th>
-
                         <th>Tag</th>
-
                         <th>
                             <a href="{{ url_for('producten', search=search_query, sorts=sort_urls['marque']) }}"
                                class="text-white text-decoration-none">
                                 Marque <i class="fas {{ sort_icons['marque'] }} ms-1 small"></i>
                             </a>
                         </th>
-
                         <th>
                             <a href="{{ url_for('producten', search=search_query, sorts=sort_urls['categorie']) }}"
                                class="text-white text-decoration-none">
                                 Groupe <i class="fas {{ sort_icons['categorie'] }} ms-1 small"></i>
                             </a>
                         </th>
-
                         <th class="text-end pe-4">Options</th>
                     </tr>
                 </thead>
@@ -136,50 +128,56 @@
                         <td class="ps-4" onclick="event.stopPropagation()">
                             <input type="checkbox" class="form-check-input">
                         </td>
-                        <td class="text-muted small">#{{ item.reference or item.id }}</td>
-                        <td class="fw-bold">{{ item.nom }}</td>
+                        <td style="color:var(--text-tertiary); font-size:0.8rem;">#{{ item.reference or item.id }}</td>
+                        <td class="fw-bold" style="font-size:0.88rem;">{{ item.nom }}</td>
                         <td>
                             {% if item.prix_dernier_achat %}
-                                {{ "%.2f"|format(item.prix_dernier_achat) }} €
+                                <span style="font-weight:600;">{{ "%.2f"|format(item.prix_dernier_achat) }} &euro;</span>
                             {% else %}
-                                <span class="text-muted">-</span>
+                                <span style="color:var(--text-tertiary);">&mdash;</span>
                             {% endif %}
                         </td>
                         <td>
                             {% if item.nb_prix and item.nb_prix > 0 %}
-                                <span class="badge bg-light text-dark border small">
+                                <span class="badge" style="background:var(--bg); color:var(--text); border:1px solid var(--border); font-weight:600;">
                                     {{ "%.2f"|format(item.prix_min) }}
-                                    {% if item.nb_prix > 1 %} – {{ "%.2f"|format(item.prix_max) }}{% endif %}
+                                    {% if item.nb_prix > 1 %} &ndash; {{ "%.2f"|format(item.prix_max) }}{% endif %}
                                     dh
                                 </span>
                                 {% if item.nb_prix > 1 %}
-                                <span class="text-muted small">({{ item.nb_prix }} tarifs)</span>
+                                <span style="color:var(--text-tertiary); font-size:0.75rem;">({{ item.nb_prix }} tarifs)</span>
                                 {% endif %}
                             {% else %}
-                                <span class="text-muted small">—</span>
+                                <span style="color:var(--text-tertiary); font-size:0.8rem;">&mdash;</span>
                             {% endif %}
                         </td>
                         <td>
-                            <span class="badge {% if item.stock_calc <= item.stock_min_securite %}bg-danger{% else %}bg-light text-dark border{% endif %}">
+                            {% if item.stock_calc <= item.stock_min_securite %}
+                            <span class="badge bg-danger" style="animation:pulse-soft 2s ease-in-out infinite;">
                                 {{ item.stock_calc }}
                             </span>
+                            {% else %}
+                            <span class="badge" style="background:var(--bg); color:var(--text); border:1px solid var(--border); font-weight:600;">
+                                {{ item.stock_calc }}
+                            </span>
+                            {% endif %}
                         </td>
                         <td>
                             {% if item.tag %}
-                                <span class="badge bg-info text-white small">{{ item.tag }}</span>
+                                <span class="badge" style="background:var(--primary-light); color:var(--primary);">{{ item.tag }}</span>
                             {% else %}
-                                <span class="text-muted small">-</span>
+                                <span style="color:var(--text-tertiary); font-size:0.8rem;">&mdash;</span>
                             {% endif %}
                         </td>
-                        <td>{{ item.marque or '-' }}</td>
-                        <td>{{ item.categorie_nom or '-' }}</td>
+                        <td style="font-size:0.85rem;">{{ item.marque or '&mdash;' }}</td>
+                        <td style="font-size:0.85rem;">{{ item.categorie_nom or '&mdash;' }}</td>
                         <td class="text-end pe-4" onclick="event.stopPropagation()">
                             <a href="{{ url_for('produit_detail', id=item.id) }}"
-                               class="btn btn-sm btn-outline-primary me-1" title="Voir détail">
+                               class="btn btn-sm btn-outline-primary me-1" style="border-radius:var(--radius-sm); border-color:var(--border); color:var(--primary);" title="Voir d&eacute;tail">
                                 <i class="fas fa-eye"></i>
                             </a>
                             <a href="{{ url_for('delete', id=item.id) }}"
-                               class="btn btn-sm btn-outline-danger"
+                               class="btn btn-sm btn-outline-danger" style="border-radius:var(--radius-sm);"
                                onclick="return confirm('Supprimer ce produit ?')"
                                title="Supprimer">
                                 <i class="fas fa-trash"></i>
@@ -188,9 +186,9 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="10" class="text-center text-muted py-4">
-                            <i class="fas fa-box-open fa-2x mb-2 d-block"></i>
-                            Aucun produit trouvé{% if search_query %} pour "{{ search_query }}"{% endif %}.
+                        <td colspan="10" class="text-center py-5" style="color:var(--text-tertiary);">
+                            <i class="fas fa-box-open fa-2x mb-2 d-block" style="opacity:0.3;"></i>
+                            Aucun produit trouv&eacute;{% if search_query %} pour "{{ search_query }}"{% endif %}.
                         </td>
                     </tr>
                     {% endfor %}
@@ -198,29 +196,30 @@
             </table>
         </div>
 
-        <div class="mt-2 text-muted small ps-1">
-            {{ items | length }} produit(s) affiché(s)
+        <div class="mt-3 ps-1" style="color:var(--text-tertiary); font-size:0.8rem; font-weight:500;">
+            <i class="fas fa-database me-1" style="opacity:0.5;"></i>
+            {{ items | length }} produit(s) affich&eacute;(s)
         </div>
     </div>
 </div>
 
-<!-- Modal: Ajouter Produit -->
+<!-- Modal: Add Product -->
 <div class="modal fade" id="addModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header" style="background:#2c3e50; color:white;">
+        <div class="modal-content">
+            <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Nouveau Produit</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('add') }}" method="POST">
-                <div class="modal-body p-4">
+                <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-12">
                             <label class="form-label fw-bold">Nom du produit *</label>
                             <input type="text" name="nom" class="form-control" placeholder="Ex: DACLON NYLON..." required>
                         </div>
                         <div class="col-6">
-                            <label class="form-label fw-bold">Référence</label>
+                            <label class="form-label fw-bold">R&eacute;f&eacute;rence</label>
                             <input type="text" name="reference" class="form-control" placeholder="Ex: 000235">
                         </div>
                         <div class="col-6">
@@ -228,16 +227,16 @@
                             <input type="text" name="marque" class="form-control" placeholder="Ex: SMI">
                         </div>
                         <div class="col-6">
-                            <label class="form-label fw-bold">Prix d'achat (€)</label>
+                            <label class="form-label fw-bold">Prix d'achat (&euro;)</label>
                             <input type="number" name="prix_achat" class="form-control" step="0.01" value="0">
                         </div>
                         <div class="col-6">
-                            <label class="form-label fw-bold">Stock min. sécurité</label>
+                            <label class="form-label fw-bold">Stock min. s&eacute;curit&eacute;</label>
                             <input type="number" name="stock_min" class="form-control" value="0">
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0">
+                <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
                     <button type="submit" class="btn btn-info text-white px-4">Enregistrer</button>
                 </div>
@@ -246,24 +245,24 @@
     </div>
 </div>
 
-<!-- Modal: Importer CSV -->
+<!-- Modal: Import CSV -->
 <div class="modal fade" id="importModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header" style="background:#2c3e50; color:white;">
+        <div class="modal-content">
+            <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-file-csv me-2"></i>Importer produits via CSV</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('import_produits') }}" method="POST" enctype="multipart/form-data">
-                <div class="modal-body p-4">
-                    <div class="alert alert-info small">
+                <div class="modal-body">
+                    <div class="alert" style="background:var(--info-light); color:var(--primary-dark); border:none; border-radius:var(--radius-md); font-size:0.85rem;">
                         <strong>Format CSV attendu :</strong><br>
-                        <code>nom, reference, marque, code_barres, description, prix_dernier_achat, prix_revient_ttc, stock_min_securite, tag, categorie, type_element</code>
+                        <code style="font-size:0.8rem;">nom, reference, marque, code_barres, description, prix_dernier_achat, prix_revient_ttc, stock_min_securite, tag, categorie, type_element</code>
                     </div>
                     <label class="form-label fw-bold">Fichier CSV</label>
                     <input type="file" name="csv_file" class="form-control" accept=".csv" required>
                 </div>
-                <div class="modal-footer border-0">
+                <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
                     <button type="submit" class="btn btn-info text-white px-4">Importer</button>
                 </div>
@@ -273,10 +272,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<style>
-    .cursor-pointer { cursor: pointer; }
-    .table-hover tbody tr:hover { background-color: #f0f7ff; }
-</style>
 <script>
     document.querySelectorAll('tr[data-href]').forEach(function(row) {
         row.addEventListener('click', function() {
