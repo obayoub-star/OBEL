@@ -77,10 +77,7 @@
             {% if not is_new %}
             <span style="color:var(--text-tertiary); font-size:0.82rem; font-weight:500;">Profil</span>
             {% endif %}
-            <button form="clientForm" type="submit" class="btn btn-info text-white btn-sm px-4 fw-bold" style="border-radius:var(--radius-sm);">
-                <i class="fas fa-save me-1"></i> Enregistrer
-            </button>
-            <a href="{{ url_for('clients_list') }}" class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-sm);">
+            <a href="{{ url_for('clients_list') }}" id="retourBtn" class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-sm);">
                 <i class="fas fa-arrow-left me-1"></i> Retour
             </a>
         </div>
@@ -108,6 +105,10 @@
                class="detail-tab {% if current_tab == 'tarifs' %}active{% endif %}">
                 Tarifs produits
             </a>
+            <a href="{{ url_for('client_detail', id=client.id, tab='chiffre') }}"
+               class="detail-tab {% if current_tab == 'chiffre' %}active{% endif %}">
+                Chiffre d'affaires
+            </a>
             {% endif %}
         </div>
 
@@ -118,6 +119,7 @@
                   method="POST">
                 {% if not is_new %}
                 <input type="hidden" name="tab" value="{{ current_tab }}">
+                <input type="hidden" name="redirect" value="" id="redirectField">
                 {% endif %}
 
                 {% if current_tab == 'general' %}
@@ -419,6 +421,37 @@
                 <div class="empty-state"><i class="fas fa-tags"></i>Aucun tarif sp&eacute;cifique assign&eacute;.<br><small>Assignez des tarifs depuis la fiche produit.</small></div>
                 {% endif %}
 
+                {% elif current_tab == 'chiffre' and not is_new %}
+                <!-- ═══ TAB: Chiffre d'affaires ═══ -->
+                </form>
+                <div class="section-title">
+                    <i class="fas fa-chart-line me-2" style="color:var(--primary);"></i>
+                    Chiffre d'affaires &mdash; {{ client.nom }}
+                </div>
+                {% set total_ht = factures | sum(attribute='montant_ht') if factures else 0 %}
+                {% set total_ttc = factures | sum(attribute='montant_ttc') if factures else 0 %}
+                {% set nb_payees = factures | selectattr('statut', 'equalto', 'Pay\u00e9') | list | length if factures else 0 %}
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="location-box text-center">
+                            <div class="field-label">Total HT</div>
+                            <div class="heading" style="font-size:1.4rem; color:var(--primary);">{{ "%.2f"|format(total_ht) }} dh</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="location-box text-center">
+                            <div class="field-label">Total TTC</div>
+                            <div class="heading" style="font-size:1.4rem; color:var(--text);">{{ "%.2f"|format(total_ttc) }} dh</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="location-box text-center">
+                            <div class="field-label">Factures pay&eacute;es</div>
+                            <div class="heading" style="font-size:1.4rem; color:var(--success);">{{ nb_payees }} / {{ factures | length }}</div>
+                        </div>
+                    </div>
+                </div>
+
                 {% endif %}
 
                 {% if current_tab in ['general', 'facturation'] %}
@@ -434,10 +467,77 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+/* ── Unsaved changes detection ── */
+(function() {
+    var form = document.getElementById('clientForm');
+    if (!form) return;
+    var initialData = new FormData(form);
+    var initialValues = {};
+    for (var pair of initialData.entries()) {
+        initialValues[pair[0]] = pair[1];
+    }
+    var hasChanges = false;
+
+    function markChanged() { hasChanges = true; }
+    form.addEventListener('input', markChanged);
+    form.addEventListener('change', markChanged);
+
+    // Retour button: auto-save then navigate back
+    var retourBtn = document.getElementById('retourBtn');
+    if (retourBtn) {
+        retourBtn.addEventListener('click', function(e) {
+            if (hasChanges) {
+                e.preventDefault();
+                hasChanges = false;
+                var redir = document.getElementById('redirectField');
+                if (redir) redir.value = 'list';
+                form.submit();
+            }
+        });
+    }
+
+    // Tab links in sidebar: auto-save then navigate
+    document.querySelectorAll('.detail-tab').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            if (hasChanges) {
+                e.preventDefault();
+                hasChanges = false;
+                // Change the hidden tab field to the target tab
+                var url = new URL(link.href);
+                var targetTab = url.searchParams.get('tab') || 'general';
+                var tabInput = form.querySelector('input[name="tab"]');
+                if (tabInput) tabInput.value = targetTab;
+                form.submit();
+            }
+        });
+    });
+
+    // Browser close/back: warn if unsaved
+    window.addEventListener('beforeunload', function(e) {
+        if (hasChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    // Ctrl+S / Cmd+S
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            if (hasChanges) {
+                hasChanges = false;
+                form.submit();
+            }
+        }
+    });
+})();
+
 function selectTarif(value, el) {
     document.querySelectorAll('.tarif-option').forEach(o => o.classList.remove('selected'));
     el.classList.add('selected');
-    el.querySelector('input[type="radio"]').checked = true;
+    var radio = el.querySelector('input[type="radio"]');
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 function copyMainAddress(prefix) {

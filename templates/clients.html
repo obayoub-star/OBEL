@@ -18,9 +18,7 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="d-flex gap-4 ms-1">
                 <a href="{{ url_for('clients_list') }}" class="text-decoration-none fw-bold heading" style="color:var(--text); border-bottom:2px solid var(--primary); padding-bottom:10px; font-size:0.88rem;">Clients</a>
-                <a href="#" class="text-decoration-none" style="color:var(--text-tertiary); padding-bottom:10px; font-size:0.88rem;">Fournisseurs</a>
-                <a href="#" class="text-decoration-none" style="color:var(--text-tertiary); padding-bottom:10px; font-size:0.88rem;">Contacts</a>
-                <a href="#" class="text-decoration-none" style="color:var(--text-tertiary); padding-bottom:10px; font-size:0.88rem;">Prospects</a>
+                <a href="{{ url_for('fournisseurs_list') }}" class="text-decoration-none" style="color:var(--text-tertiary); padding-bottom:10px; font-size:0.88rem;">Fournisseurs</a>
             </div>
             <div class="d-flex gap-2 pe-1">
                 <a href="{{ url_for('new_client') }}" class="btn btn-info text-white fw-bold" style="font-size:0.84rem; border-radius:var(--radius-sm);">

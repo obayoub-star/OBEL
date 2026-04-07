@@ -489,10 +489,10 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Client / H&ocirc;pital *</label>
-                        <select name="client_id" class="form-select" required>
-                            <option value="">&mdash; S&eacute;lectionner &mdash;</option>
+                        <select name="client_id" class="form-select" required onchange="autoSelectTarif(this)">
+                            <option value="">-- S&eacute;lectionner --</option>
                             {% for cl in clients %}
-                            <option value="{{ cl.id }}">{{ cl.nom }} ({{ cl.type }})</option>
+                            <option value="{{ cl.id }}" data-tarif="{{ cl.tarification or 'T1' }}">{{ cl.nom }} ({{ cl.type or '' }}) — {{ cl.tarification or 'T1' }}</option>
                             {% endfor %}
                         </select>
                         <button type="button" class="btn btn-link btn-sm p-0 mt-1" style="color:var(--primary);"
@@ -541,10 +541,29 @@
 </div>
 
 <script>
+var TARIF_PRICES = {
+    'T1': {{ produit.prix_tarif_1 or 20 }},
+    'T2': {{ produit.prix_tarif_2 or 14.15 }},
+    'T3': {{ produit.prix_tarif_3 or 75 }}
+};
+
 function selectTarif(prix, btn) {
     document.getElementById('prixInput').value = prix;
     document.querySelectorAll('.tarif-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+}
+
+function autoSelectTarif(sel) {
+    var opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) return;
+    var tarif = opt.dataset.tarif || 'T1';
+    var prix = TARIF_PRICES[tarif] || TARIF_PRICES['T1'];
+    document.getElementById('prixInput').value = prix;
+    // Highlight the matching tarif button
+    var btns = document.querySelectorAll('.tarif-btn');
+    btns.forEach(function(b) { b.classList.remove('active'); });
+    var idx = tarif === 'T1' ? 0 : tarif === 'T2' ? 1 : 2;
+    if (btns[idx]) btns[idx].classList.add('active');
 }
 </script>
 

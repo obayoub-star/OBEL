@@ -53,6 +53,7 @@ def migrate_db():
         ('clients', 'code_postal_livraison','TEXT'),
         ('clients', 'pays_livraison',       'TEXT'),
         ('clients', 'actif',                'INTEGER DEFAULT 1'),
+        ('clients', 'est_fournisseur',      'INTEGER DEFAULT 0'),
     ]
     for table, col, col_type in migrations:
         try:
@@ -489,7 +490,7 @@ def produit_detail(id):
 
     types_element   = conn.execute('SELECT * FROM types_element ORDER BY nom').fetchall()
     categories      = conn.execute('SELECT * FROM categories    ORDER BY nom').fetchall()
-    clients         = conn.execute('SELECT * FROM clients        ORDER BY nom').fetchall()
+    clients         = conn.execute('SELECT * FROM clients WHERE (est_fournisseur IS NULL OR est_fournisseur = 0) ORDER BY nom').fetchall()
     prix_vente_list = conn.execute('''
         SELECT pv.*, cl.nom AS client_nom
         FROM prix_vente pv JOIN clients cl ON pv.client_id = cl.id
@@ -578,6 +579,20 @@ def add_prix_vente(id):
     prix      = request.form.get('prix', 0)
     if client_id:
         conn     = get_db_connection()
+        # Auto-determine price based on client tarification if no custom price given
+        client = conn.execute('SELECT tarification FROM clients WHERE id=?', (client_id,)).fetchone()
+        produit = conn.execute('SELECT prix_tarif_1, prix_tarif_2, prix_tarif_3 FROM produits WHERE id=?', (id,)).fetchone()
+        if client and produit:
+            tarif = client['tarification'] or 'T1'
+            if tarif == 'T1':
+                auto_prix = produit['prix_tarif_1'] or 20
+            elif tarif == 'T2':
+                auto_prix = produit['prix_tarif_2'] or 14.15
+            else:
+                auto_prix = produit['prix_tarif_3'] or 75
+            # Use auto price if form submitted default T1 price or user didn't change it
+            if float(prix) == float(produit['prix_tarif_1'] or 20):
+                prix = auto_prix
         existing = conn.execute('SELECT id FROM prix_vente WHERE produit_id=? AND client_id=?',
                                 (id, client_id)).fetchone()
         if existing:
@@ -725,6 +740,12 @@ def delete_category(cat_id):
     return redirect(url_for('produit_detail', id=produit_id, tab='informations'))
 
 
+def _f(val):
+    """Return None for empty/whitespace strings, stripped value otherwise."""
+    v = (val or '').strip()
+    return v if v else None
+
+
 def _generate_client_code(conn):
     """Generate next client code like LC0001, LC0002, ..."""
     row = conn.execute("SELECT code_client FROM clients WHERE code_client IS NOT NULL ORDER BY code_client DESC LIMIT 1").fetchone()
@@ -744,10 +765,10 @@ def _generate_client_code(conn):
 def clients_list():
     conn   = get_db_connection()
     search = request.args.get('search', '').strip()
-    query  = 'SELECT * FROM clients'
+    query  = 'SELECT * FROM clients WHERE (est_fournisseur IS NULL OR est_fournisseur = 0)'
     params = []
     if search:
-        query += ' WHERE (nom LIKE ? OR code_client LIKE ? OR email LIKE ? OR telephone LIKE ? OR ville LIKE ? OR ice LIKE ?)'
+        query += ' AND (nom LIKE ? OR code_client LIKE ? OR email LIKE ? OR telephone LIKE ? OR ville LIKE ? OR ice LIKE ?)'
         params = [f'%{search}%'] * 6
     query += ' ORDER BY nom'
     clients = conn.execute(query, params).fetchall()
@@ -764,6 +785,7 @@ def new_client():
         if nom:
             conn = get_db_connection()
             code = _generate_client_code(conn)
+            g = lambda k, d=None: _f(request.form.get(k, '')) or d
             conn.execute('''
                 INSERT INTO clients
                     (nom, code_client, type, adresse, ville, telephone, email,
@@ -776,32 +798,15 @@ def new_client():
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)
             ''', (
                 nom, code,
-                request.form.get('type', 'Hôpital'),
-                request.form.get('adresse', ''),
-                request.form.get('ville', ''),
-                request.form.get('telephone', ''),
-                request.form.get('email', ''),
-                request.form.get('ice', ''),
-                request.form.get('identifiant_fiscal', ''),
-                request.form.get('code_postal', ''),
-                request.form.get('region', ''),
-                request.form.get('pays', 'Maroc'),
-                request.form.get('gsm', ''),
-                request.form.get('contact', ''),
-                request.form.get('tarification', 'T1'),
-                request.form.get('categorie_client', ''),
-                request.form.get('latitude', ''),
-                request.form.get('longitude', ''),
-                request.form.get('adresse_facturation', ''),
-                request.form.get('ville_facturation', ''),
-                request.form.get('region_facturation', ''),
-                request.form.get('code_postal_facturation', ''),
-                request.form.get('pays_facturation', ''),
-                request.form.get('adresse_livraison', ''),
-                request.form.get('ville_livraison', ''),
-                request.form.get('region_livraison', ''),
-                request.form.get('code_postal_livraison', ''),
-                request.form.get('pays_livraison', ''),
+                g('type', 'Hôpital'), g('adresse'), g('ville'),
+                g('telephone'), g('email'), g('ice'), g('identifiant_fiscal'),
+                g('code_postal'), g('region'), g('pays', 'Maroc'),
+                g('gsm'), g('contact'), g('tarification', 'T1'),
+                g('categorie_client'), g('latitude'), g('longitude'),
+                g('adresse_facturation'), g('ville_facturation'), g('region_facturation'),
+                g('code_postal_facturation'), g('pays_facturation'),
+                g('adresse_livraison'), g('ville_livraison'), g('region_livraison'),
+                g('code_postal_livraison'), g('pays_livraison'),
             ))
             conn.commit()
             new_id = conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
@@ -840,6 +845,7 @@ def client_detail(id):
 @login_required
 def edit_client(id):
     conn = get_db_connection()
+    g = lambda k, d=None: _f(request.form.get(k, '')) or d
     conn.execute('''
         UPDATE clients SET
             nom=?, type=?, adresse=?, ville=?, telephone=?, email=?,
@@ -853,36 +859,34 @@ def edit_client(id):
         WHERE id=?
     ''', (
         request.form.get('nom', '').strip(),
-        request.form.get('type', 'Hôpital'),
-        request.form.get('adresse', ''),
-        request.form.get('ville', ''),
-        request.form.get('telephone', ''),
-        request.form.get('email', ''),
-        request.form.get('ice', ''),
-        request.form.get('identifiant_fiscal', ''),
-        request.form.get('code_postal', ''),
-        request.form.get('region', ''),
-        request.form.get('pays', 'Maroc'),
-        request.form.get('gsm', ''),
-        request.form.get('contact', ''),
-        request.form.get('tarification', 'T1'),
-        request.form.get('categorie_client', ''),
-        request.form.get('latitude', ''),
-        request.form.get('longitude', ''),
-        request.form.get('adresse_facturation', ''),
-        request.form.get('ville_facturation', ''),
-        request.form.get('region_facturation', ''),
-        request.form.get('code_postal_facturation', ''),
-        request.form.get('pays_facturation', ''),
-        request.form.get('adresse_livraison', ''),
-        request.form.get('ville_livraison', ''),
-        request.form.get('region_livraison', ''),
+        g('type', 'Hôpital'), g('adresse'), g('ville'),
+        g('telephone'), g('email'), g('ice'), g('identifiant_fiscal'),
+        g('code_postal'), g('region'), g('pays', 'Maroc'),
+        g('gsm'), g('contact'), g('tarification', 'T1'),
+        g('categorie_client'), g('latitude'), g('longitude'),
+        g('adresse_facturation'), g('ville_facturation'), g('region_facturation'),
+        g('code_postal_facturation'), g('pays_facturation'),
+        g('adresse_livraison'), g('ville_livraison'), g('region_livraison'),
         request.form.get('code_postal_livraison', ''),
         request.form.get('pays_livraison', ''),
         id,
     ))
+    # Auto-update all prix_vente when tarification changes
+    new_tarif = g('tarification', 'T1')
+    tarif_col = {'T1': 'prix_tarif_1', 'T2': 'prix_tarif_2', 'T3': 'prix_tarif_3'}
+    col = tarif_col.get(new_tarif, 'prix_tarif_1')
+    conn.execute(f'''
+        UPDATE prix_vente SET prix = (
+            SELECT COALESCE(p.{col}, p.prix_tarif_1, 20)
+            FROM produits p WHERE p.id = prix_vente.produit_id
+        )
+        WHERE client_id = ?
+    ''', (id,))
+
     conn.commit()
     conn.close()
+    if request.form.get('redirect') == 'list':
+        return redirect(url_for('clients_list'))
     return redirect(url_for('client_detail', id=id, tab=request.form.get('tab', 'general')))
 
 
@@ -956,6 +960,126 @@ def add_client():
                     else url_for('clients_list'))
 
 
+def _generate_fournisseur_code(conn):
+    row = conn.execute("SELECT code_client FROM clients WHERE est_fournisseur=1 AND code_client IS NOT NULL ORDER BY code_client DESC LIMIT 1").fetchone()
+    if row and row['code_client']:
+        try:
+            num = int(row['code_client'].replace('LF', '')) + 1
+        except ValueError:
+            num = conn.execute("SELECT COUNT(*) AS n FROM clients WHERE est_fournisseur=1").fetchone()['n'] + 1
+    else:
+        num = 1
+    return f"LF{num:04d}"
+
+
+# ─── FOURNISSEURS : LIST ────────────────────────────────────────────────────
+@app.route('/fournisseurs')
+@login_required
+def fournisseurs_list():
+    conn   = get_db_connection()
+    search = request.args.get('search', '').strip()
+    query  = 'SELECT * FROM clients WHERE est_fournisseur = 1'
+    params = []
+    if search:
+        query += ' AND (nom LIKE ? OR code_client LIKE ? OR email LIKE ? OR telephone LIKE ? OR ville LIKE ?)'
+        params = [f'%{search}%'] * 5
+    query += ' ORDER BY nom'
+    fournisseurs = conn.execute(query, params).fetchall()
+    conn.close()
+    return render_template('fournisseurs.html', fournisseurs=fournisseurs, search_query=search)
+
+
+# ─── FOURNISSEURS : ADD ─────────────────────────────────────────────────────
+@app.route('/fournisseurs/new', methods=['GET', 'POST'])
+@login_required
+def new_fournisseur():
+    if request.method == 'POST':
+        nom = request.form.get('nom', '').strip()
+        if nom:
+            conn = get_db_connection()
+            code = _generate_fournisseur_code(conn)
+            g = lambda k, d=None: _f(request.form.get(k, '')) or d
+            conn.execute('''
+                INSERT INTO clients
+                    (nom, code_client, type, adresse, ville, telephone, email,
+                     ice, identifiant_fiscal, code_postal, region, pays, gsm, contact,
+                     categorie_client, actif, est_fournisseur)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,1)
+            ''', (
+                nom, code, g('type'), g('adresse'), g('ville'),
+                g('telephone'), g('email'), g('ice'), g('identifiant_fiscal'),
+                g('code_postal'), g('region'), g('pays', 'Maroc'),
+                g('gsm'), g('contact'), g('categorie_client'),
+            ))
+            conn.commit()
+            new_id = conn.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
+            conn.close()
+            return redirect(url_for('fournisseur_detail', id=new_id))
+        return redirect(url_for('new_fournisseur'))
+    return render_template('fournisseur_detail.html', fournisseur=None, is_new=True)
+
+
+# ─── FOURNISSEURS : DETAIL ──────────────────────────────────────────────────
+@app.route('/fournisseurs/<int:id>')
+@login_required
+def fournisseur_detail(id):
+    conn = get_db_connection()
+    fournisseur = conn.execute('SELECT * FROM clients WHERE id=? AND est_fournisseur=1', (id,)).fetchone()
+    if not fournisseur:
+        conn.close()
+        return redirect(url_for('fournisseurs_list'))
+    conn.close()
+    return render_template('fournisseur_detail.html', fournisseur=fournisseur, is_new=False)
+
+
+@app.route('/fournisseurs/<int:id>/edit', methods=['POST'])
+@login_required
+def edit_fournisseur(id):
+    conn = get_db_connection()
+    g = lambda k, d=None: _f(request.form.get(k, '')) or d
+    conn.execute('''
+        UPDATE clients SET
+            nom=?, type=?, adresse=?, ville=?, telephone=?, email=?,
+            ice=?, identifiant_fiscal=?, code_postal=?, region=?, pays=?,
+            gsm=?, contact=?, categorie_client=?
+        WHERE id=?
+    ''', (
+        request.form.get('nom', '').strip(),
+        g('type'), g('adresse'), g('ville'),
+        g('telephone'), g('email'), g('ice'), g('identifiant_fiscal'),
+        g('code_postal'), g('region'), g('pays', 'Maroc'),
+        g('gsm'), g('contact'), g('categorie_client'),
+        id,
+    ))
+    conn.commit()
+    conn.close()
+    if request.form.get('redirect') == 'list':
+        return redirect(url_for('fournisseurs_list'))
+    return redirect(url_for('fournisseur_detail', id=id))
+
+
+@app.route('/fournisseurs/<int:id>/toggle', methods=['POST'])
+@login_required
+def toggle_fournisseur(id):
+    conn = get_db_connection()
+    client = conn.execute('SELECT actif FROM clients WHERE id=?', (id,)).fetchone()
+    if client:
+        conn.execute('UPDATE clients SET actif=? WHERE id=?', (0 if client['actif'] else 1, id))
+        conn.commit()
+    conn.close()
+    return redirect(url_for('fournisseurs_list'))
+
+
+@app.route('/fournisseurs/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_fournisseur(id):
+    conn = get_db_connection()
+    conn.execute('DELETE FROM clients WHERE id=? AND est_fournisseur=1', (id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('fournisseurs_list'))
+
+
 # ─── DELETE PRODUIT ───────────────────────────────────────────────────────────
 @app.route('/delete/<int:id>')
 @admin_required
@@ -1027,7 +1151,7 @@ def new_facture():
         fid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
         conn.close()
         return redirect(url_for('edit_facture', id=fid))
-    clients = conn.execute('SELECT * FROM clients ORDER BY nom').fetchall()
+    clients = conn.execute('SELECT * FROM clients WHERE (est_fournisseur IS NULL OR est_fournisseur = 0) ORDER BY nom').fetchall()
     conn.close()
     return render_template('facture_new.html', clients=clients, today=today)
 
@@ -1054,7 +1178,7 @@ def edit_facture(id):
         LEFT JOIN lots     l ON fl.lot_id     = l.id
         WHERE fl.facture_id = ? ORDER BY fl.id
     ''', (id,)).fetchall()
-    clients  = conn.execute('SELECT * FROM clients ORDER BY nom').fetchall()
+    clients  = conn.execute('SELECT * FROM clients WHERE (est_fournisseur IS NULL OR est_fournisseur = 0) ORDER BY nom').fetchall()
     produits = conn.execute('''
         SELECT p.*,
                COALESCE((SELECT SUM(l.quantite) FROM lots l WHERE l.produit_id=p.id),0) AS stock_total

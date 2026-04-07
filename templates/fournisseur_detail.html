@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedicaTronic - {% if is_new %}Nouveau fournisseur{% else %}{{ fournisseur.nom }}{% endif %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .form-field { margin-bottom: 20px; }
+        .form-field label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.72rem; font-weight: 600;
+            color: var(--text-tertiary); text-transform: uppercase;
+            letter-spacing: 0.05em; display: block; margin-bottom: 4px;
+        }
+        .form-field input, .form-field select {
+            border: none; border-bottom: 1.5px solid var(--border); border-radius: 0;
+            padding: 8px 0; font-size: 0.92rem; background: transparent;
+            transition: border-color 0.25s ease; width: 100%;
+        }
+        .form-field input:focus, .form-field select:focus {
+            border-bottom-color: var(--primary); box-shadow: none; outline: none;
+        }
+        .form-field input::placeholder { color: var(--text-tertiary); }
+        .section-title {
+            font-family: 'Outfit', sans-serif; font-size: 1.1rem;
+            font-weight: 700; color: var(--text); margin-bottom: 28px;
+        }
+    </style>
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+{% set f = fournisseur %}
+<div class="main-content">
+    <div class="detail-header d-flex justify-content-between align-items-center">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0 small">
+                <li class="breadcrumb-item"><a href="{{ url_for('fournisseurs_list') }}">Fournisseurs</a></li>
+                <li class="breadcrumb-item active fw-bold">
+                    {% if is_new %}Nouveau fournisseur{% else %}{{ f.nom }}{% endif %}
+                </li>
+            </ol>
+        </nav>
+        <div class="d-flex gap-2 align-items-center">
+            {% if not is_new %}
+            <span class="badge" style="background:var(--warning-light); color:#92400E; font-size:0.72rem;">
+                <i class="fas fa-truck me-1"></i> Fournisseur
+            </span>
+            {% endif %}
+            <a href="{{ url_for('fournisseurs_list') }}" id="retourBtn" class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-sm);">
+                <i class="fas fa-arrow-left me-1"></i> Retour
+            </a>
+        </div>
+    </div>
+
+    <div class="detail-main p-4" style="max-width:960px;">
+        <form id="fournisseurForm"
+              action="{% if is_new %}{{ url_for('new_fournisseur') }}{% else %}{{ url_for('edit_fournisseur', id=f.id) }}{% endif %}"
+              method="POST">
+            {% if not is_new %}
+            <input type="hidden" name="redirect" value="" id="redirectField">
+            {% endif %}
+
+            <div class="section-title">
+                <i class="fas fa-truck me-2" style="color:var(--primary);"></i>
+                {% if is_new %}Nouveau fournisseur{% else %}{{ f.nom }}{% endif %}
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-field">
+                        <label>Entreprise *</label>
+                        <input type="text" name="nom" value="{{ (f.nom or '') if f else '' }}" required placeholder="Nom du fournisseur">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-field">
+                        <label>T&eacute;l&eacute;phone</label>
+                        <input type="text" name="telephone" value="{{ (f.telephone or '') if f else '' }}" placeholder="T&eacute;l&eacute;phone">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-field">
+                        <label>Email</label>
+                        <input type="email" name="email" value="{{ (f.email or '') if f else '' }}" placeholder="email@fournisseur.com">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-field">
+                        <label>Adresse</label>
+                        <input type="text" name="adresse" value="{{ (f.adresse or '') if f else '' }}" placeholder="Adresse">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-field">
+                        <label>Code fournisseur</label>
+                        <input type="text" value="{{ (f.code_client or '') if f else '' }}" disabled placeholder="Auto-g&eacute;n&eacute;r&eacute;"
+                               style="color:var(--text-tertiary);">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-field">
+                        <label>Code postal</label>
+                        <input type="text" name="code_postal" value="{{ (f.code_postal or '') if f else '' }}" placeholder="Code postal">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-field">
+                        <label>ICE</label>
+                        <input type="text" name="ice" value="{{ (f.ice or '') if f else '' }}" placeholder="ICE">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-field">
+                        <label>R&eacute;gion</label>
+                        <input type="text" name="region" value="{{ (f.region or '') if f else '' }}" placeholder="R&eacute;gion">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-field">
+                        <label>Identifiant fiscal (IF)</label>
+                        <input type="text" name="identifiant_fiscal" value="{{ (f.identifiant_fiscal or '') if f else '' }}" placeholder="IF">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-field">
+                        <label>Ville</label>
+                        <input type="text" name="ville" value="{{ (f.ville or '') if f else '' }}" placeholder="Ville">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-field">
+                        <label>Pays</label>
+                        <select name="pays" class="form-select" style="border:none; border-bottom:1.5px solid var(--border); border-radius:0; padding:8px 0;">
+                            <option value="Maroc" {% if not f or (f and (f.pays or 'Maroc') == 'Maroc') %}selected{% endif %}>Maroc</option>
+                            <option value="France" {% if f and f.pays == 'France' %}selected{% endif %}>France</option>
+                            <option value="Belgique" {% if f and f.pays == 'Belgique' %}selected{% endif %}>Belgique</option>
+                            <option value="Autre" {% if f and f.pays == 'Autre' %}selected{% endif %}>Autre</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-field">
+                        <label>GSM</label>
+                        <input type="text" name="gsm" value="{{ (f.gsm or '') if f else '' }}" placeholder="Num&eacute;ro mobile">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-field">
+                        <label>Contact</label>
+                        <input type="text" name="contact" value="{{ (f.contact or '') if f else '' }}" placeholder="Nom du contact">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-field">
+                        <label>Cat&eacute;gorie</label>
+                        <select name="categorie_client" class="form-select" style="border:none; border-bottom:1.5px solid var(--border); border-radius:0; padding:8px 0;">
+                            <option value="">--</option>
+                            <option value="Fabricant" {% if f and f.categorie_client == 'Fabricant' %}selected{% endif %}>Fabricant</option>
+                            <option value="Distributeur" {% if f and f.categorie_client == 'Distributeur' %}selected{% endif %}>Distributeur</option>
+                            <option value="Importateur" {% if f and f.categorie_client == 'Importateur' %}selected{% endif %}>Importateur</option>
+                            <option value="Autre" {% if f and f.categorie_client == 'Autre' %}selected{% endif %}>Autre</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function() {
+    var form = document.getElementById('fournisseurForm');
+    if (!form) return;
+    var hasChanges = false;
+    form.addEventListener('input', function() { hasChanges = true; });
+    form.addEventListener('change', function() { hasChanges = true; });
+
+    var retourBtn = document.getElementById('retourBtn');
+    if (retourBtn) {
+        retourBtn.addEventListener('click', function(e) {
+            if (hasChanges) {
+                e.preventDefault();
+                hasChanges = false;
+                var redir = document.getElementById('redirectField');
+                if (redir) redir.value = 'list';
+                form.submit();
+            }
+        });
+    }
+
+    window.addEventListener('beforeunload', function(e) {
+        if (hasChanges) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            if (hasChanges) { hasChanges = false; form.submit(); }
+        }
+    });
+})();
+</script>
+</body>
+</html>
