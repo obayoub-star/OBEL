@@ -1,0 +1,443 @@
+/* ═══════════════════════════════════════════════════════════
+   hsabati – Globale stijlen
+═══════════════════════════════════════════════════════════ */
+:root {
+    --sidebar-w:         210px;
+    --sidebar-collapsed: 58px;
+    --sidebar-bg:        #0f172a;
+    --sidebar-border:    rgba(255,255,255,0.06);
+    --sidebar-hover:     rgba(255,255,255,0.07);
+    --accent:            #0dcaf0;
+    --accent-dark:       #0284c7;
+    --bg-light:          #f1f5f9;
+    --text-main:         #1e293b;
+    --border:            #e2e8f0;
+    --dark-head:         #2c3e50;
+    --transition:        0.22s ease;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    background:   var(--bg-light);
+    font-family:  'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color:        var(--text-main);
+    margin:       0;
+    display:      flex;
+    min-height:   100vh;
+    overflow-x:   hidden;
+}
+
+/* ──────────────────────────────────────────────────────────
+   SIDEBAR TOGGLE BUTTON (hamburger, altijd zichtbaar)
+────────────────────────────────────────────────────────── */
+.sidebar-toggle-btn {
+    position:    fixed;
+    top:         12px;
+    left:        calc(var(--sidebar-w) - 34px);
+    z-index:     1100;
+    background:  var(--accent);
+    border:      none;
+    border-radius: 50%;
+    width:       28px;
+    height:      28px;
+    color:       white;
+    cursor:      pointer;
+    display:     flex;
+    align-items: center;
+    justify-content: center;
+    font-size:   0.75rem;
+    transition:  left var(--transition), background var(--transition);
+    box-shadow:  0 2px 8px rgba(0,0,0,0.3);
+}
+.sidebar-toggle-btn:hover { background: var(--accent-dark); }
+
+body.sidebar-collapsed .sidebar-toggle-btn {
+    left: calc(var(--sidebar-collapsed) - 14px);
+}
+
+/* ──────────────────────────────────────────────────────────
+   SIDEBAR
+────────────────────────────────────────────────────────── */
+.sidebar {
+    width:       var(--sidebar-w);
+    background:  var(--sidebar-bg);
+    color:       white;
+    position:    fixed;
+    height:      100vh;
+    left:        0;
+    top:         0;
+    z-index:     1000;
+    display:     flex;
+    flex-direction: column;
+    overflow:    hidden;
+    transition:  width var(--transition);
+    border-right: 1px solid var(--sidebar-border);
+}
+
+body.sidebar-collapsed .sidebar {
+    width: var(--sidebar-collapsed);
+}
+
+/* ── Brand / Logo ── */
+.sidebar-brand {
+    display:     flex;
+    align-items: center;
+    gap:         10px;
+    padding:     16px 14px 14px;
+    border-bottom: 1px solid var(--sidebar-border);
+    white-space: nowrap;
+    overflow:    hidden;
+    flex-shrink: 0;
+}
+
+.logo-icon-sidebar {
+    width:          36px;
+    height:         36px;
+    min-width:      36px;
+    background:     transparent;
+    border-radius:  0;
+    display:        flex;
+    align-items:    center;
+    justify-content: center;
+    flex-shrink:    0;
+}
+
+.sidebar-brand .sidebar-text {
+    font-size:   1.1rem;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    transition:  opacity var(--transition), width var(--transition);
+    white-space: nowrap;
+    overflow:    hidden;
+}
+
+body.sidebar-collapsed .sidebar-brand .sidebar-text {
+    opacity: 0;
+    width:   0;
+}
+
+/* ── Gebruiker ── */
+.sidebar-user {
+    display:     flex;
+    align-items: center;
+    gap:         10px;
+    padding:     12px 14px;
+    border-bottom: 1px solid var(--sidebar-border);
+    flex-shrink: 0;
+    overflow:    hidden;
+}
+
+.user-avatar {
+    width:          34px;
+    height:         34px;
+    min-width:      34px;
+    background:     linear-gradient(135deg, #334155, #475569);
+    border-radius:  50%;
+    display:        flex;
+    align-items:    center;
+    justify-content: center;
+    font-weight:    800;
+    font-size:      0.9rem;
+    color:          white;
+    flex-shrink:    0;
+}
+
+.user-info {
+    overflow: hidden;
+}
+
+.user-name {
+    font-size:   0.82rem;
+    font-weight: 700;
+    color:       white;
+    white-space: nowrap;
+    overflow:    hidden;
+    text-overflow: ellipsis;
+}
+
+.user-role {
+    font-size: 0.7rem;
+    color:     #64748b;
+}
+
+/* ── Nav links ── */
+nav {
+    flex:      1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding:   6px 0;
+    scrollbar-width: none;
+}
+nav::-webkit-scrollbar { display: none; }
+
+.nav-link {
+    display:     flex;
+    align-items: center;
+    gap:         10px;
+    padding:     10px 14px;
+    color:       #94a3b8;
+    text-decoration: none;
+    font-size:   0.84rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow:    hidden;
+    border-radius: 0;
+    transition:  background var(--transition), color var(--transition);
+    position:    relative;
+}
+.nav-link:hover  { background: var(--sidebar-hover); color: white; }
+.nav-link.active {
+    background: linear-gradient(90deg, rgba(13,202,240,.18) 0%, transparent 100%);
+    color:      var(--accent);
+    border-left: 3px solid var(--accent);
+    padding-left: 11px;
+}
+.nav-link.text-danger-soft { color: #f87171 !important; }
+.nav-link.text-danger-soft:hover { background: rgba(248,113,113,.1); }
+
+.nav-icon {
+    font-size:  0.9rem;
+    width:      20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.sidebar-text {
+    transition: opacity var(--transition);
+    white-space: nowrap;
+    overflow:   hidden;
+}
+body.sidebar-collapsed .sidebar-text { opacity: 0; }
+
+.nav-divider {
+    height:     1px;
+    background: var(--sidebar-border);
+    margin:     8px 14px;
+}
+
+/* ── Bottom logout ── */
+.sidebar-bottom {
+    border-top:  1px solid var(--sidebar-border);
+    padding:     6px 0;
+    flex-shrink: 0;
+}
+
+/* ──────────────────────────────────────────────────────────
+   MAIN CONTENT
+────────────────────────────────────────────────────────── */
+.main-content {
+    flex:        1;
+    margin-left: var(--sidebar-w);
+    width:       calc(100% - var(--sidebar-w));
+    min-height:  100vh;
+    background:  var(--bg-light);
+    transition:  margin-left var(--transition), width var(--transition);
+}
+body.sidebar-collapsed .main-content {
+    margin-left: var(--sidebar-collapsed);
+    width:       calc(100% - var(--sidebar-collapsed));
+}
+
+/* Sticky top-bar */
+.bg-white.border-bottom {
+    position: sticky;
+    top:      0;
+    z-index:  900;
+}
+
+/* ──────────────────────────────────────────────────────────
+   CONTENT
+────────────────────────────────────────────────────────── */
+.content-padding { padding: 20px 28px; }
+
+/* ──────────────────────────────────────────────────────────
+   TABEL
+────────────────────────────────────────────────────────── */
+.table-container {
+    background:    white;
+    border-radius: 6px;
+    overflow:      hidden;
+    margin-top:    10px;
+}
+.table-container thead th {
+    background-color: var(--dark-head) !important;
+    color:            #fff !important;
+    font-size:        0.79rem;
+    font-weight:      600;
+    padding:          11px 14px;
+    border:           none;
+    vertical-align:   middle;
+}
+.table-container thead th i { font-size: 0.7rem; margin-left: 4px; }
+
+.leverancier-header { background: #f8fafc; color: #475569; font-weight: 700; }
+
+/* ──────────────────────────────────────────────────────────
+   KNOPPEN
+────────────────────────────────────────────────────────── */
+.btn-info {
+    background-color: var(--accent)      !important;
+    border-color:     var(--accent)      !important;
+    color:            white              !important;
+}
+.btn-outline-info {
+    color:        var(--accent)  !important;
+    border-color: var(--accent)  !important;
+}
+.btn-outline-info:hover {
+    background-color: var(--accent) !important;
+    color:            white         !important;
+}
+.btn-white {
+    background:  white;
+    border:      1px solid var(--border);
+    color:       #64748b;
+}
+
+/* ──────────────────────────────────────────────────────────
+   KPI KAARTEN (dashboard)
+────────────────────────────────────────────────────────── */
+.kpi-card {
+    background:    white;
+    border-radius: 10px;
+    padding:       20px 22px;
+    border:        1px solid var(--border);
+    display:       flex;
+    align-items:   center;
+    gap:           16px;
+    transition:    box-shadow .15s;
+}
+.kpi-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.kpi-icon {
+    width:          48px;
+    height:         48px;
+    border-radius:  12px;
+    display:        flex;
+    align-items:    center;
+    justify-content: center;
+    font-size:      1.3rem;
+    flex-shrink:    0;
+}
+.kpi-icon.blue   { background: #e0f2fe; color: var(--accent-dark); }
+.kpi-icon.red    { background: #fee2e2; color: #dc2626; }
+.kpi-icon.green  { background: #dcfce7; color: #16a34a; }
+.kpi-icon.yellow { background: #fef9c3; color: #ca8a04; }
+.kpi-value  { font-size: 1.5rem; font-weight: 800; color: var(--text-main); line-height: 1; }
+.kpi-label  { font-size: 0.78rem; color: #64748b; margin-top: 3px; }
+
+/* ──────────────────────────────────────────────────────────
+   GRAFIEK KAART
+────────────────────────────────────────────────────────── */
+.chart-card {
+    background:    white;
+    border-radius: 10px;
+    border:        1px solid var(--border);
+    padding:       20px 22px;
+}
+.chart-card .chart-title {
+    font-size:   0.85rem;
+    font-weight: 700;
+    color:       #475569;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: 16px;
+}
+
+/* ──────────────────────────────────────────────────────────
+   DETAIL PAGINA
+────────────────────────────────────────────────────────── */
+.detail-wrapper {
+    display: flex;
+    height:  100%;
+}
+.detail-main { flex: 1; overflow-y: auto; }
+.detail-tabs-sidebar {
+    width:         190px;
+    min-width:     190px;
+    background:    #fff;
+    border-left:   3px solid var(--accent);
+    display:       flex;
+    flex-direction: column;
+    padding-top:   8px;
+}
+.detail-tab {
+    display:     block;
+    padding:     11px 18px;
+    font-size:   0.82rem;
+    color:       #475569;
+    text-decoration: none;
+    border-bottom: 1px solid #f1f5f9;
+    transition:  background .15s;
+    white-space: nowrap;
+    overflow:    hidden;
+}
+.detail-tab:hover  { background: #f0f7ff; color: var(--accent); }
+.detail-tab.active {
+    background:  #e0f2fe;
+    color:       var(--accent-dark);
+    font-weight: 700;
+    border-left: 3px solid var(--accent);
+    margin-left: -3px;
+}
+
+/* Field cards */
+.field-card {
+    background:    #fff;
+    border:        1px solid var(--border);
+    border-radius: 6px;
+    padding:       18px 20px;
+    margin-bottom: 16px;
+}
+.field-label {
+    font-size:     0.74rem;
+    font-weight:   600;
+    color:         #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: 4px;
+}
+.location-box {
+    background:    #f8fafc;
+    border:        1px solid var(--border);
+    border-radius: 6px;
+    padding:       10px 14px;
+    font-size:     0.85rem;
+}
+
+/* Tab tables */
+.tab-table thead th {
+    background: var(--dark-head);
+    color:      #fff;
+    font-size:  0.78rem;
+    font-weight: 600;
+    padding:    10px 14px;
+}
+.tab-table tbody td { font-size: 0.85rem; padding: 10px 14px; }
+
+/* Pièces jointes placeholder */
+.pj-placeholder {
+    min-height:     280px;
+    display:        flex;
+    flex-direction: column;
+    align-items:    center;
+    justify-content: center;
+    color:          #94a3b8;
+}
+
+/* Header detail */
+.detail-header {
+    background:    #fff;
+    border-bottom: 1px solid var(--border);
+    padding:       12px 24px;
+}
+.breadcrumb-item a { color: var(--accent); text-decoration: none; }
+
+/* ──────────────────────────────────────────────────────────
+   STATUS BADGES
+────────────────────────────────────────────────────────── */
+.status-ok     { background: #dcfce7; color: #166534; }
+.status-danger { background: #fee2e2; color: #991b1b; }
+
+.cursor-pointer { cursor: pointer; }
+.table-hover tbody tr:hover { background-color: #f0f7ff; }

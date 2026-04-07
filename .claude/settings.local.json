@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ':*)",
+      "Bash(python init_db.py)",
+      "Bash(sed -i '' 's/hsabati - Nouvelle facture/MedicaTronic - Nouvelle facture/g' /Users/ayoubobari/Desktop/Voorraad_app/templates/facture_new.html)",
+      "Bash(sed -i '' 's/hsabati – Vue d'\"'\"'ensemble/MedicaTronic – Vue d'\"'\"'ensemble/g' /Users/ayoubobari/Desktop/Voorraad_app/templates/overview.html)",
+      "Bash(sed -i '' 's/hsabati – Utilisateurs/MedicaTronic – Utilisateurs/g' /Users/ayoubobari/Desktop/Voorraad_app/templates/admin_users.html)",
+      "Bash(sed -i '' 's/hsabati - Ventes/MedicaTronic - Ventes/g' /Users/ayoubobari/Desktop/Voorraad_app/templates/ventes.html)"
+    ]
+  }
+}

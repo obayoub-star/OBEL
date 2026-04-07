@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>MedicaTronic - Nouvelle facture</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% include '_sidebar.html' %}
+<div class="main-content">
+    <div class="detail-header d-flex justify-content-between align-items-center p-3 bg-white border-bottom">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0 small">
+                <li class="breadcrumb-item"><a href="{{ url_for('ventes') }}" style="color:#0dcaf0;">Ventes</a></li>
+                <li class="breadcrumb-item active fw-bold">Nouvelle facture</li>
+            </ol>
+        </nav>
+        <a href="{{ url_for('ventes') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i> Retour
+        </a>
+    </div>
+    <div class="content-padding" style="max-width:700px;">
+        <div class="bg-white border rounded p-4 shadow-sm mt-2">
+            <h5 class="fw-bold mb-4"><i class="fas fa-file-invoice me-2 text-info"></i>Nouvelle facture</h5>
+            <form action="{{ url_for('new_facture') }}" method="POST">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Client *</label>
+                        <select name="client_id" class="form-select" required>
+                            <option value="">— Sélectionner un client —</option>
+                            {% for cl in clients %}
+                            <option value="{{ cl.id }}">{{ cl.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Date de facture</label>
+                        <div class="form-control bg-light text-muted">
+                            <i class="fas fa-calendar-check me-1"></i> {{ today }}
+                            <small class="d-block" style="font-size:0.72rem;">Fixée automatiquement à aujourd'hui</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Date d'échéance</label>
+                        <input type="date" name="date_echeance" class="form-control" value="{{ today }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Devise</label>
+                        <select name="devise" class="form-select">
+                            <option value="MAD">dh - MAD</option>
+                            <option value="EUR">€ - EUR</option>
+                            <option value="USD">$ - USD</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Emplacement du stock</label>
+                        <input type="text" name="emplacement_stock" class="form-control" placeholder="Ex: Babylon">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Objet</label>
+                        <input type="text" name="objet" class="form-control" placeholder="Ex: SUTURE">
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-4 justify-content-end">
+                    <a href="{{ url_for('ventes') }}" class="btn btn-outline-secondary px-4">Annuler</a>
+                    <button type="submit" class="btn btn-info text-white px-4 fw-bold">
+                        <i class="fas fa-arrow-right me-1"></i> Créer la facture
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

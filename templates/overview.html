@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedicaTronic – Vue d'ensemble</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+    <div class="bg-white border-bottom px-4 py-3">
+        <h5 class="fw-bold mb-0"><i class="fas fa-chart-bar me-2 text-info"></i>Vue d'ensemble – Stock, Ventes &amp; Mouvements</h5>
+    </div>
+
+    <div class="content-padding">
+
+        <!-- Tab keuze -->
+        <div class="d-flex gap-2 mb-4">
+            <a href="{{ url_for('overview', type='ventes') }}"
+               class="btn btn-sm {% if filtre == 'ventes' %}btn-info text-white{% else %}btn-outline-secondary{% endif %}">
+                <i class="fas fa-file-invoice-dollar me-1"></i> Produits vendus
+            </a>
+            <a href="{{ url_for('overview', type='stock') }}"
+               class="btn btn-sm {% if filtre == 'stock' %}btn-info text-white{% else %}btn-outline-secondary{% endif %}">
+                <i class="fas fa-boxes me-1"></i> Stock actuel
+            </a>
+            <a href="{{ url_for('overview', type='mouvement') }}"
+               class="btn btn-sm {% if filtre == 'mouvement' %}btn-info text-white{% else %}btn-outline-secondary{% endif %}">
+                <i class="fas fa-exchange-alt me-1"></i> Mouvements
+            </a>
+        </div>
+
+        {% if filtre == 'stock' %}
+        <!-- ── STOCK ACTUEL ── -->
+        <div class="table-container shadow-sm">
+            <table class="table align-middle mb-0">
+                <thead style="background:#2c3e50; color:white;">
+                    <tr>
+                        <th class="ps-4">Produit</th>
+                        <th>Référence</th>
+                        <th>Fabricant</th>
+                        <th>N° Lot</th>
+                        <th>Warehouse</th>
+                        <th>Bloc</th>
+                        <th>Rangée</th>
+                        <th>Quantité</th>
+                        <th>Expiration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in stock_rows %}
+                    <tr>
+                        <td class="ps-4 fw-semibold">{{ row.nom }}</td>
+                        <td class="text-muted small">{{ row.reference or '—' }}</td>
+                        <td>
+                            {% if row.marque %}
+                            <span class="badge bg-light text-dark border">{{ row.marque }}</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="text-muted small">{{ row.lot_numero or '—' }}</td>
+                        <td>
+                            {% if row.warehouse %}
+                            <i class="fas fa-warehouse me-1 text-info small"></i>{{ row.warehouse }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="text-muted small">{{ row.bloc or '—' }}</td>
+                        <td class="text-muted small">{{ row.rangee or '—' }}</td>
+                        <td>
+                            <span class="badge bg-info text-white">{{ row.quantite }}</span>
+                        </td>
+                        <td class="text-muted small">{{ row.date_expiration or '—' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="9" class="text-center text-muted py-4">Aucun stock enregistré.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-2 text-muted small ps-1">{{ stock_rows|length }} lot(s) en stock</div>
+
+        {% elif filtre == 'mouvement' %}
+        <!-- ── MOUVEMENTS ── -->
+        <div class="table-container shadow-sm">
+            <table class="table align-middle mb-0">
+                <thead style="background:#2c3e50; color:white;">
+                    <tr>
+                        <th class="ps-4">Date</th>
+                        <th>Produit</th>
+                        <th>Réf</th>
+                        <th>Fabricant</th>
+                        <th>Type</th>
+                        <th>Quantité</th>
+                        <th>Référence doc.</th>
+                        <th>Note</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in mvt_rows %}
+                    <tr>
+                        <td class="ps-4 text-muted small">{{ row.date_mvt or '—' }}</td>
+                        <td class="fw-semibold">{{ row.produit_nom }}</td>
+                        <td class="text-muted small">{{ row.produit_ref or '—' }}</td>
+                        <td>{{ row.marque or '—' }}</td>
+                        <td>
+                            {% if row.type_mvt == 'Entrée' %}
+                                <span class="badge bg-success"><i class="fas fa-arrow-down me-1"></i>Entrée</span>
+                            {% elif row.type_mvt == 'Sortie' %}
+                                <span class="badge bg-danger"><i class="fas fa-arrow-up me-1"></i>Sortie</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ row.type_mvt }}</span>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ row.quantite }}</strong></td>
+                        <td class="text-muted small">{{ row.reference or '—' }}</td>
+                        <td class="text-muted small">{{ row.note or '—' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">Aucun mouvement enregistré.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-2 text-muted small ps-1">{{ mvt_rows|length }} mouvement(s)</div>
+
+        {% else %}
+        <!-- ── PRODUITS VENDUS (défaut) ── -->
+        <div class="table-container shadow-sm">
+            <table class="table align-middle mb-0">
+                <thead style="background:#2c3e50; color:white;">
+                    <tr>
+                        <th class="ps-4">Date</th>
+                        <th>N° Facture</th>
+                        <th>Client</th>
+                        <th>Produit</th>
+                        <th>Réf</th>
+                        <th>Fabricant</th>
+                        <th>Qté</th>
+                        <th>Prix unit.</th>
+                        <th>Montant HT</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in ventes_rows %}
+                    <tr>
+                        <td class="ps-4 text-muted small">{{ row.date_facture or '—' }}</td>
+                        <td class="fw-bold text-info">{{ row.facture_num or '—' }}</td>
+                        <td class="fw-semibold">{{ row.client_nom or '—' }}</td>
+                        <td>{{ row.designation or '—' }}</td>
+                        <td class="text-muted small">{{ row.reference or '—' }}</td>
+                        <td>{{ row.marque or '—' }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ row.quantite }}</span></td>
+                        <td>{{ "%.2f"|format(row.prix_unitaire or 0) }} dh</td>
+                        <td class="fw-bold">{{ "%.2f"|format(row.montant_ht or 0) }} dh</td>
+                        <td>
+                            {% if row.statut == 'Payé' %}
+                                <span class="badge bg-success small">Payé</span>
+                            {% elif row.statut == 'Impayé' %}
+                                <span class="badge bg-danger small">Impayé</span>
+                            {% else %}
+                                <span class="badge bg-secondary small">{{ row.statut }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="10" class="text-center text-muted py-4">
+                        <i class="fas fa-box-open fa-2x mb-2 d-block opacity-25"></i>
+                        Aucune vente enregistrée.
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-2 text-muted small ps-1">{{ ventes_rows|length }} ligne(s) de vente</div>
+        {% endif %}
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

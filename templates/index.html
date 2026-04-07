@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedicaTronic – Tableau de bord</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+    <div class="bg-white border-bottom px-4 py-3 d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0"><i class="fas fa-th-large me-2 text-info"></i>Tableau de bord</h5>
+        <small class="text-muted">
+            <i class="fas fa-calendar me-1"></i>
+            {{ now if now else '' }}
+        </small>
+    </div>
+
+    <div class="content-padding">
+
+        <!-- KPI Kaarten -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3 col-sm-6">
+                <a href="{{ url_for('producten') }}" class="text-decoration-none">
+                    <div class="kpi-card">
+                        <div class="kpi-icon blue"><i class="fas fa-box"></i></div>
+                        <div>
+                            <div class="kpi-value">{{ total_produits }}</div>
+                            <div class="kpi-label">Total Produits</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="kpi-card">
+                    <div class="kpi-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div>
+                        <div class="kpi-value text-danger">{{ stock_critique }}</div>
+                        <div class="kpi-label">Stock Critique</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <a href="{{ url_for('ventes') }}" class="text-decoration-none">
+                    <div class="kpi-card">
+                        <div class="kpi-icon green"><i class="fas fa-file-invoice-dollar"></i></div>
+                        <div>
+                            <div class="kpi-value">{{ "%.0f"|format(ventes_mois_ttc) }} <small style="font-size:.8rem;">dh</small></div>
+                            <div class="kpi-label">Ventes ce mois</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="kpi-card">
+                    <div class="kpi-icon yellow"><i class="fas fa-hospital"></i></div>
+                    <div>
+                        <div class="kpi-value">{{ nb_clients }}</div>
+                        <div class="kpi-label">Clients actifs</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rij 1: Stock par marque + Evolution ventes -->
+        <div class="row g-3 mb-3">
+
+            <!-- Chart 1: Stock par marque -->
+            <div class="col-lg-6">
+                <div class="chart-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="chart-title"><i class="fas fa-warehouse me-1"></i> Stock par fabricant</div>
+                        <select id="marqueFilter" class="form-select form-select-sm border-0 shadow-sm"
+                                style="width:auto;" onchange="loadStockParMarque()">
+                            <option value="">Tous les fabricants</option>
+                            {% for m in marques %}
+                            <option value="{{ m.marque }}">{{ m.marque }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div style="height:260px;">
+                        <canvas id="stockMarqueChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart 2: Évolution ventes mensuelle -->
+            <div class="col-lg-6">
+                <div class="chart-card">
+                    <div class="chart-title"><i class="fas fa-chart-line me-1"></i> Évolution des ventes (12 mois)</div>
+                    <div style="height:260px;">
+                        <canvas id="evolutionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Rij 2: Top ventes + Top clients -->
+        <div class="row g-3">
+
+            <!-- Chart 3: Meilleurs produits vendus -->
+            <div class="col-lg-6">
+                <div class="chart-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="chart-title"><i class="fas fa-trophy me-1"></i> Meilleures ventes</div>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-info text-white active" id="btnMois"
+                                    onclick="loadTopVentes('mois')">Ce mois</button>
+                            <button type="button" class="btn btn-outline-info" id="btnAnnee"
+                                    onclick="loadTopVentes('annee')">Cette année</button>
+                        </div>
+                    </div>
+                    <div style="height:260px;">
+                        <canvas id="topVentesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart 4: Meilleurs clients -->
+            <div class="col-lg-6">
+                <div class="chart-card">
+                    <div class="chart-title"><i class="fas fa-star me-1"></i> Meilleurs clients (CA total)</div>
+                    <div style="height:260px;">
+                        <canvas id="topClientsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const COLORS = [
+    '#0dcaf0','#0284c7','#22c55e','#eab308','#f97316',
+    '#ec4899','#8b5cf6','#14b8a6','#ef4444','#64748b'
+];
+
+/* ── Chart 1: Stock par marque ─────────────────────── */
+let stockChart;
+async function loadStockParMarque() {
+    const marque = document.getElementById('marqueFilter').value;
+    const r = await fetch('/api/dashboard/stock-par-marque' + (marque ? '?marque=' + encodeURIComponent(marque) : ''));
+    const d = await r.json();
+    if (stockChart) stockChart.destroy();
+    stockChart = new Chart(document.getElementById('stockMarqueChart'), {
+        type: 'bar',
+        data: {
+            labels: d.labels,
+            datasets: [{
+                label: 'Unités en stock',
+                data: d.data,
+                backgroundColor: COLORS.slice(0, d.data.length),
+                borderRadius: 5,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+}
+
+/* ── Chart 2: Évolution ventes ─────────────────────── */
+let evoChart;
+async function loadEvolution() {
+    const r = await fetch('/api/dashboard/evolution-ventes');
+    const d = await r.json();
+    if (evoChart) evoChart.destroy();
+    evoChart = new Chart(document.getElementById('evolutionChart'), {
+        type: 'line',
+        data: {
+            labels: d.labels,
+            datasets: [{
+                label: 'CA mensuel (dh TTC)',
+                data: d.data,
+                borderColor: '#0dcaf0',
+                backgroundColor: 'rgba(13,202,240,0.1)',
+                borderWidth: 2.5,
+                pointRadius: 4,
+                pointBackgroundColor: '#0dcaf0',
+                fill: true,
+                tension: 0.35,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#f1f5f9' },
+                     ticks: { callback: v => v.toLocaleString('fr-FR') + ' dh' } },
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+}
+
+/* ── Chart 3: Top ventes ───────────────────────────── */
+let topVentesChart;
+async function loadTopVentes(periode) {
+    document.getElementById('btnMois').className  = periode === 'mois'  ? 'btn btn-info text-white' : 'btn btn-outline-info';
+    document.getElementById('btnAnnee').className = periode === 'annee' ? 'btn btn-info text-white' : 'btn btn-outline-info';
+    const r = await fetch('/api/dashboard/top-ventes?periode=' + periode);
+    const d = await r.json();
+    const labels = d.labels.map(l => l.length > 30 ? l.substring(0,30) + '…' : l);
+    if (topVentesChart) topVentesChart.destroy();
+    topVentesChart = new Chart(document.getElementById('topVentesChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Quantité vendue',
+                data: d.data,
+                backgroundColor: '#22c55e',
+                borderRadius: 5,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+}
+
+/* ── Chart 4: Top clients ──────────────────────────── */
+let topClientsChart;
+async function loadTopClients() {
+    const r = await fetch('/api/dashboard/top-clients');
+    const d = await r.json();
+    if (topClientsChart) topClientsChart.destroy();
+    if (!d.labels.length) {
+        document.getElementById('topClientsChart').parentElement.innerHTML =
+            '<div class="text-center text-muted py-4"><i class="fas fa-chart-pie fa-2x mb-2 d-block opacity-25"></i>Aucune donnée</div>';
+        return;
+    }
+    topClientsChart = new Chart(document.getElementById('topClientsChart'), {
+        type: 'doughnut',
+        data: {
+            labels: d.labels,
+            datasets: [{
+                data: d.data,
+                backgroundColor: COLORS.slice(0, d.data.length),
+                borderWidth: 2,
+                borderColor: '#fff',
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { font: { size: 11 }, boxWidth: 14 } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ctx.label + ': ' + ctx.parsed.toLocaleString('fr-FR') + ' dh'
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Initialiseer alle grafieken
+loadStockParMarque();
+loadEvolution();
+loadTopVentes('mois');
+loadTopClients();
+</script>
+</body>
+</html>

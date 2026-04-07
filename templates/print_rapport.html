@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Print Kritieke Voorraad</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        @media print { .no-print { display: none; } }
+        body { background: white; }
+    </style>
+</head>
+<body onload="window.print()">
+    <div class="container mt-5">
+        <h2 class="text-center">⚠️ Kritieke Voorraad Rapport</h2>
+        <p class="text-center text-muted">Gegenereerd op: <span id="date"></span></p>
+        
+        <table class="table table-bordered mt-4">
+            <thead class="table-light">
+                <tr>
+                    <th>Instrument</th>
+                    <th>Huidige Stock</th>
+                    <th>Drempel</th>
+                    <th>Besteld Aantal</th>
+                    <th>Besteld Door</th>
+                    <th>Verwachte Levering</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in items %}
+                <tr>
+                    <td>{{ row['naam'] }}</td>
+                    <td>{{ row['aantal_in_stock'] }}</td>
+                    <td>{{ row['min_stock'] }}</td>
+                    <td>{{ row['besteld_aantal'] }}</td>
+                    <td>{{ row['besteller'] or '-' }}</td>
+                    <td>{{ row['leverdatum'] or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <div class="mt-5 no-print">
+            <button onclick="window.print()" class="btn btn-primary">Nu Printen</button>
+            <a href="/" class="btn btn-secondary">Terug naar Dashboard</a>
+        </div>
+    </div>
+    <script>document.getElementById('date').innerHTML = new Date().toLocaleString();</script>
+</body>
+</html>

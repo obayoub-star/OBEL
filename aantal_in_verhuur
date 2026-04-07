@@ -1,0 +1,9 @@
+import sqlite3
+db = sqlite3.connect('database.db')
+try:
+    db.execute('ALTER TABLE voorraad ADD COLUMN aantal_in_verhuur INTEGER DEFAULT 0')
+    db.commit()
+    print("Database succesvol geüpdatet!")
+except:
+    print("Kolom bestond al.")
+db.close()

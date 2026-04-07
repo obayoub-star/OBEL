@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedicaTronic - {{ facture.numero }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .facture-layout { display:flex; gap:0; min-height:calc(100vh - 55px); }
+        .facture-main   { flex:1; padding:24px; overflow-y:auto; }
+        .facture-right  { width:280px; min-width:280px; background:#fff; border-left:1px solid #e2e8f0; padding:20px 16px; }
+
+        /* Section "Ajouter un article" */
+        .add-article-section {
+            background: #2c3e50;
+            border-radius: 6px;
+            color: #fff;
+            padding: 14px 20px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .add-article-form {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .add-article-form .form-label { font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:3px; }
+
+        /* Lignes tabel */
+        .lignes-table thead th {
+            background: #2c3e50;
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 10px 12px;
+            border: none;
+        }
+        .lignes-table tbody td { font-size:0.82rem; padding:10px 12px; vertical-align:middle; }
+        .lignes-table tbody tr:hover { background:#f8fafc; }
+
+        /* Totalen box */
+        .totals-box { background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0; padding:16px; }
+        .totals-box .row-total { display:flex; justify-content:space-between; padding:4px 0; font-size:0.88rem; }
+        .totals-box .grand-total { font-size:1.05rem; font-weight:800; border-top:2px solid #2c3e50; padding-top:8px; margin-top:4px; }
+
+        /* Info veld rechts */
+        .info-field { margin-bottom:14px; }
+        .info-field label { font-size:0.72rem; font-weight:700; color:#94a3b8; text-transform:uppercase; display:block; margin-bottom:3px; }
+        .info-field input, .info-field select, .info-field textarea {
+            font-size:0.83rem; border:none; border-bottom:1px solid #e2e8f0;
+            border-radius:0; padding:4px 0; background:transparent; width:100%;
+        }
+        .info-field input:focus, .info-field select:focus, .info-field textarea:focus {
+            outline:none; border-bottom-color:#0dcaf0;
+        }
+
+        .edit-ligne-row { background:#fffbeb; }
+        .edit-ligne-row td { padding:6px 8px !important; }
+    </style>
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+
+    <!-- Header -->
+    <div class="bg-white border-bottom px-4 py-2 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0 small">
+                    <li class="breadcrumb-item"><a href="{{ url_for('ventes') }}" style="color:#0dcaf0;">Ventes</a></li>
+                    <li class="breadcrumb-item active fw-bold">Éditer facture</li>
+                </ol>
+            </nav>
+            <span class="badge
+                {% if facture.statut == 'Payé' %}bg-success
+                {% elif facture.statut == 'Impayé' %}bg-danger
+                {% elif facture.statut == 'Partiellement payé' %}bg-warning text-dark
+                {% else %}bg-secondary{% endif %} px-2">
+                {{ facture.statut }}
+            </span>
+        </div>
+        <div class="d-flex gap-2">
+            <!-- Changer statut -->
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-exchange-alt me-1"></i> Changer statut
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    {% for st in ['En instance','Impayé','Partiellement payé','Payé'] %}
+                    <li>
+                        <form action="{{ url_for('update_facture_statut', id=facture.id) }}" method="POST">
+                            <input type="hidden" name="statut" value="{{ st }}">
+                            <button type="submit" class="dropdown-item {% if facture.statut == st %}fw-bold{% endif %}">
+                                {{ st }}
+                            </button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <a href="{{ url_for('print_facture', id=facture.id) }}" target="_blank"
+               class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-print me-1"></i> Imprimer / PDF
+            </a>
+            <button form="headerForm" type="submit" class="btn btn-sm btn-info text-white px-3 fw-bold">
+                <i class="fas fa-save me-1"></i> Enregistrer
+            </button>
+            <form action="{{ url_for('delete_facture', id=facture.id) }}" method="POST" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-outline-danger"
+                        onclick="return confirm('Supprimer définitivement ?')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </form>
+            <a href="{{ url_for('ventes') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="facture-layout">
+
+        <!-- ── Contenu principal ── -->
+        <div class="facture-main">
+
+            <!-- Client block -->
+            <div class="mb-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Client *</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fs-5 fw-bold">{{ facture.client_nom or '—' }}</span>
+                            <button type="button" class="btn btn-sm btn-link text-info p-0"
+                                    data-bs-toggle="modal" data-bs-target="#editHeaderModal">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                        <div class="text-muted small mt-1">
+                            {% if facture.client_adresse %}
+                            <div><i class="fas fa-map-marker-alt me-1"></i>{{ facture.client_adresse }}{% if facture.client_ville %}, {{ facture.client_ville }}{% endif %}</div>
+                            {% endif %}
+                            {% if facture.client_telephone %}
+                            <div><i class="fas fa-phone me-1"></i>{{ facture.client_telephone }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="row g-2 text-end">
+                            <div class="col-12">
+                                <span class="text-muted small">Numéro de facture</span>
+                                <div class="fw-bold text-info fs-6">{{ facture.numero }}</div>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small">Date de facture</span>
+                                <div class="fw-semibold">{{ facture.date_facture or '—' }}</div>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small">Date d'échéance</span>
+                                <div class="fw-semibold">{{ facture.date_echeance or '—' }}</div>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small">Devise</span>
+                                <div>dh - {{ facture.devise or 'MAD' }}</div>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small">Emplacement du stock</span>
+                                <div>{{ facture.emplacement_stock or '—' }}</div>
+                            </div>
+                            {% if facture.objet %}
+                            <div class="col-12">
+                                <span class="text-muted small">Objet</span>
+                                <div class="fw-semibold">{{ facture.objet }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- Section "Ajouter un article" -->
+            <div class="add-article-section" onclick="toggleAddForm()">
+                <i class="fas fa-plus-circle"></i> Ajouter un article
+                <i class="fas fa-chevron-down ms-auto small" id="addFormChevron"></i>
+            </div>
+
+            <div id="addArticleForm" class="add-article-form" style="display:none;">
+                <form action="{{ url_for('add_facture_ligne', id=facture.id) }}" method="POST">
+                    <div class="row g-2 align-items-end">
+                        <!-- Produit + autocomplete -->
+                        <div class="col-md-3">
+                            <label class="form-label">Produit</label>
+                            <select name="produit_id" id="produitSelect" class="form-select form-select-sm"
+                                    onchange="loadProduitInfo(this.value)">
+                                <option value="">— Choisir —</option>
+                                {% for p in produits %}
+                                <option value="{{ p.id }}" data-ref="{{ p.reference }}" data-nom="{{ p.nom }}" data-tva="{{ p.tva }}">
+                                    [{{ p.reference or p.id }}] {{ p.nom[:45] }}{% if p.nom|length > 45 %}…{% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Réf</label>
+                            <input type="text" name="reference" id="articleRef" class="form-control form-control-sm" placeholder="Réf">
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">Désignation</label>
+                            <input type="text" name="designation" id="articleDesig" class="form-control form-control-sm" placeholder="Nom du produit / LOT">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Lot</label>
+                            <select name="lot_id" id="lotSelect" class="form-select form-select-sm">
+                                <option value="">Aucune sélection</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Quantité</label>
+                            <input type="number" name="quantite" id="articleQty" class="form-control form-control-sm"
+                                   value="1" min="0.001" step="0.001" onchange="calcMontant()">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Prix unitaire</label>
+                            <input type="number" name="prix_unitaire" id="articlePrix" class="form-control form-control-sm"
+                                   value="0" step="0.01" onchange="calcMontant()">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Taxe (%)</label>
+                            <input type="number" name="tva" id="articleTva" class="form-control form-control-sm"
+                                   value="20" step="0.1">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Remise (%)</label>
+                            <input type="number" name="remise" id="articleRemise" class="form-control form-control-sm"
+                                   value="0" step="0.01" onchange="calcMontant()">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Montant HT</label>
+                            <input type="text" id="articleMontant" class="form-control form-control-sm bg-light"
+                                   readonly placeholder="0.00">
+                        </div>
+                        <div class="col-md-2 d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary flex-fill" onclick="resetForm()">
+                                <i class="fas fa-sync-alt"></i> Actualiser
+                            </button>
+                            <button type="submit" class="btn btn-sm btn-info text-white flex-fill fw-bold">
+                                <i class="fas fa-plus"></i> Ajouter
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Lignes de la facture -->
+            {% if lignes %}
+            <div class="table-responsive">
+                <table class="table lignes-table mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width:30px;"></th>
+                            <th>Réf</th>
+                            <th>Article / Désignation</th>
+                            <th>Quantité</th>
+                            <th>Prix Unitaire</th>
+                            <th>Taxe</th>
+                            <th>Remise</th>
+                            <th>Montant HT</th>
+                            <th style="width:70px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ligne in lignes %}
+                        <tr>
+                            <td class="text-muted small">{{ loop.index }}</td>
+                            <td class="text-muted small">{{ ligne.reference or '—' }}</td>
+                            <td class="fw-semibold">
+                                {{ ligne.designation or ligne.produit_nom or '—' }}
+                                {% if ligne.lot_numero %}
+                                    <span class="text-muted small"> LOT:{{ ligne.lot_numero }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ ligne.quantite }}</td>
+                            <td>{{ "%.2f"|format(ligne.prix_unitaire) }} dh</td>
+                            <td>{{ "%.0f"|format(ligne.tva) }}%</td>
+                            <td>{{ "%.0f"|format(ligne.remise) }}</td>
+                            <td class="fw-bold text-dark">{{ "%.4f"|format(ligne.montant_ht) }}</td>
+                            <td>
+                                <form action="{{ url_for('delete_facture_ligne', fid=facture.id, lid=ligne.id) }}"
+                                      method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-link text-danger p-0"
+                                            onclick="return confirm('Supprimer cette ligne ?')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-4 border rounded">
+                <i class="fas fa-box-open fa-2x mb-2 d-block opacity-25"></i>
+                Aucun article. Utilisez le bouton ci-dessus pour ajouter des articles.
+            </div>
+            {% endif %}
+
+            <!-- Remarques -->
+            <form action="{{ url_for('update_facture_header', id=facture.id) }}" method="POST" id="headerForm" class="d-none"></form>
+            <div class="row mt-4 g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold small text-muted text-uppercase">Remarques</label>
+                    <textarea form="headerForm" name="remarques" class="form-control form-control-sm" rows="3"
+                              placeholder="Ex: BL-107733">{{ facture.remarques or '' }}</textarea>
+                    <!-- Sla ook de andere velden op via hiddens -->
+                    <input type="hidden" form="headerForm" name="client_id"          value="{{ facture.client_id or '' }}">
+                    <input type="hidden" form="headerForm" name="date_facture"        value="{{ facture.date_facture or '' }}">
+                    <input type="hidden" form="headerForm" name="date_echeance"       value="{{ facture.date_echeance or '' }}">
+                    <input type="hidden" form="headerForm" name="devise"              value="{{ facture.devise or 'MAD' }}">
+                    <input type="hidden" form="headerForm" name="emplacement_stock"   value="{{ facture.emplacement_stock or '' }}">
+                    <input type="hidden" form="headerForm" name="contact_commercial"  value="{{ facture.contact_commercial or '' }}">
+                    <input type="hidden" form="headerForm" name="modele"              value="{{ facture.modele or '' }}">
+                    <input type="hidden" form="headerForm" name="objet"               value="{{ facture.objet or '' }}">
+                    <input type="hidden" form="headerForm" name="conditions"          value="{{ facture.conditions or '' }}">
+                    <input type="hidden" form="headerForm" name="remise_globale"      value="{{ facture.remise_globale or 0 }}">
+                    <input type="hidden" form="headerForm" name="ajustement"          value="{{ facture.ajustement or 0 }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold small text-muted text-uppercase">Conditions et Modalités</label>
+                    <textarea form="headerForm" name="conditions" class="form-control form-control-sm" rows="3"
+                              placeholder="Conditions de paiement...">{{ facture.conditions or '' }}</textarea>
+                </div>
+            </div>
+
+        </div>
+        {# ── Einde main ── #}
+
+        <!-- ── Rechterzijde: info + totalen ── -->
+        <div class="facture-right">
+            <h6 class="fw-bold mb-3 text-muted small text-uppercase">Informations</h6>
+
+            <div class="info-field">
+                <label>Client</label>
+                <div class="fw-semibold small">{{ facture.client_nom or '—' }}</div>
+                {% if facture.client_adresse %}
+                <div class="text-muted" style="font-size:0.75rem;">{{ facture.client_adresse }}{% if facture.client_ville %}, {{ facture.client_ville }}{% endif %}</div>
+                {% endif %}
+                {% if facture.client_telephone %}
+                <div class="text-muted" style="font-size:0.75rem;"><i class="fas fa-phone me-1"></i>{{ facture.client_telephone }}</div>
+                {% endif %}
+            </div>
+            <div class="info-field">
+                <label>Numéro de facture</label>
+                <div class="fw-bold text-info small">{{ facture.numero }}</div>
+            </div>
+            <div class="info-field">
+                <label>Date de facture</label>
+                <div class="small">{{ facture.date_facture or '—' }}</div>
+            </div>
+            <div class="info-field">
+                <label>Date d'échéance</label>
+                <div class="small">{{ facture.date_echeance or '—' }}</div>
+            </div>
+            <div class="info-field">
+                <label>Objet</label>
+                <div class="small fw-semibold">{{ facture.objet or '—' }}</div>
+            </div>
+
+            <hr>
+
+            <h6 class="fw-bold mb-3 text-muted small text-uppercase">Totaux</h6>
+            <div class="totals-box">
+                <div class="row-total">
+                    <span class="text-muted">Montant HT</span>
+                    <span class="fw-semibold">{{ "%.2f"|format(facture.montant_ht or 0) }} dh</span>
+                </div>
+                <div class="row-total">
+                    <span class="text-muted">Remise</span>
+                    <span class="text-danger">- {{ "%.2f"|format(facture.remise_globale or 0) }} dh</span>
+                </div>
+                <div class="row-total">
+                    <span class="text-muted">Taxe 20%</span>
+                    <span>{{ "%.2f"|format(facture.montant_tva or 0) }} dh</span>
+                </div>
+                <div class="row-total">
+                    <span class="text-muted">Ajustement</span>
+                    <span>{{ "%.2f"|format(facture.ajustement or 0) }} dh</span>
+                </div>
+                <div class="row-total grand-total">
+                    <span class="fw-bold">Total TTC</span>
+                    <span class="fw-bold text-info">{{ "%.2f"|format(facture.montant_ttc or 0) }} dh</span>
+                </div>
+            </div>
+
+            <!-- Remise + ajustement bewerken -->
+            <div class="mt-3">
+                <button type="button" class="btn btn-sm btn-outline-secondary w-100"
+                        data-bs-toggle="collapse" data-bs-target="#adjustPanel">
+                    <i class="fas fa-sliders-h me-1"></i> Remise / Ajustement
+                </button>
+                <div class="collapse mt-2" id="adjustPanel">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small">Remise globale (dh)</label>
+                            <input type="number" id="remiseInput"
+                                   class="form-control form-control-sm" step="0.01"
+                                   value="{{ facture.remise_globale or 0 }}">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Ajustement (dh)</label>
+                            <input type="number" id="ajustInput"
+                                   class="form-control form-control-sm" step="0.01"
+                                   value="{{ facture.ajustement or 0 }}">
+                        </div>
+                        <div class="col-12">
+                            <button type="button" class="btn btn-sm btn-info text-white w-100"
+                                    onclick="saveAdjust()">Enregistrer</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+            <a href="{{ url_for('print_facture', id=facture.id) }}" target="_blank"
+               class="btn btn-sm btn-outline-secondary w-100">
+                <i class="fas fa-print me-1"></i> Imprimer / PDF
+            </a>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal: Éditer entête -->
+<div class="modal fade" id="editHeaderModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header" style="background:#2c3e50; color:white;">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Modifier l'entête</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('update_facture_header', id=facture.id) }}" method="POST">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Client</label>
+                            <select name="client_id" class="form-select">
+                                <option value="">— Sélectionner —</option>
+                                {% for cl in clients %}
+                                <option value="{{ cl.id }}" {% if facture.client_id == cl.id %}selected{% endif %}>
+                                    {{ cl.nom }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Date de facture</label>
+                            <div class="form-control bg-light text-muted">
+                                <i class="fas fa-lock me-1 small"></i>{{ facture.date_facture or '—' }}
+                                <small class="d-block text-muted" style="font-size:0.7rem;">Date fixée à la création</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Date d'échéance</label>
+                            <input type="date" name="date_echeance" class="form-control"
+                                   value="{{ facture.date_echeance or '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Devise</label>
+                            <select name="devise" class="form-select">
+                                <option value="MAD" {% if facture.devise == 'MAD' %}selected{% endif %}>dh - MAD</option>
+                                <option value="EUR" {% if facture.devise == 'EUR' %}selected{% endif %}>€ - EUR</option>
+                                <option value="USD" {% if facture.devise == 'USD' %}selected{% endif %}>$ - USD</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Emplacement du stock</label>
+                            <input type="text" name="emplacement_stock" class="form-control"
+                                   value="{{ facture.emplacement_stock or '' }}" placeholder="Ex: Babylon">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Objet</label>
+                            <input type="text" name="objet" class="form-control"
+                                   value="{{ facture.objet or '' }}" placeholder="Ex: SUTURE">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Contact commercial</label>
+                            <input type="text" name="contact_commercial" class="form-control"
+                                   value="{{ facture.contact_commercial or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Modèle</label>
+                            <input type="text" name="modele" class="form-control"
+                                   value="{{ facture.modele or '' }}">
+                        </div>
+                        <input type="hidden" name="remarques"     value="{{ facture.remarques or '' }}">
+                        <input type="hidden" name="conditions"    value="{{ facture.conditions or '' }}">
+                        <input type="hidden" name="remise_globale" value="{{ facture.remise_globale or 0 }}">
+                        <input type="hidden" name="ajustement"    value="{{ facture.ajustement or 0 }}">
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-info text-white px-4">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* ── Formulaire article ─────────────────────────────── */
+function toggleAddForm() {
+    var form    = document.getElementById('addArticleForm');
+    var chevron = document.getElementById('addFormChevron');
+    var visible = form.style.display !== 'none';
+    form.style.display    = visible ? 'none' : 'block';
+    chevron.className     = visible ? 'fas fa-chevron-down ms-auto small'
+                                    : 'fas fa-chevron-up ms-auto small';
+}
+
+function loadProduitInfo(produitId) {
+    if (!produitId) return;
+    fetch('/api/produit/' + produitId + '/lots')
+        .then(r => r.json())
+        .then(data => {
+            // Prix
+            document.getElementById('articlePrix').value = data.prix || 0;
+            document.getElementById('articleTva').value  = data.tva  || 20;
+            // Designation + ref
+            var sel = document.getElementById('produitSelect');
+            var opt = sel.options[sel.selectedIndex];
+            document.getElementById('articleRef').value   = opt.dataset.ref  || '';
+            document.getElementById('articleDesig').value = opt.dataset.nom  || '';
+            // Lots
+            var lotSel = document.getElementById('lotSelect');
+            lotSel.innerHTML = '<option value="">Aucune sélection</option>';
+            data.lots.forEach(function(l) {
+                var o = document.createElement('option');
+                o.value = l.id;
+                o.text  = l.lot_numero + ' (' + l.quantite + ' unités - ' + (l.warehouse || '?') + ')';
+                lotSel.appendChild(o);
+            });
+            calcMontant();
+        });
+}
+
+function calcMontant() {
+    var qty    = parseFloat(document.getElementById('articleQty').value)   || 0;
+    var prix   = parseFloat(document.getElementById('articlePrix').value)  || 0;
+    var remise = parseFloat(document.getElementById('articleRemise').value)|| 0;
+    var ht     = qty * prix * (1 - remise / 100);
+    document.getElementById('articleMontant').value = ht.toFixed(4);
+}
+
+function resetForm() {
+    document.getElementById('produitSelect').value   = '';
+    document.getElementById('articleRef').value      = '';
+    document.getElementById('articleDesig').value    = '';
+    document.getElementById('articleQty').value      = 1;
+    document.getElementById('articlePrix').value     = 0;
+    document.getElementById('articleTva').value      = 20;
+    document.getElementById('articleRemise').value   = 0;
+    document.getElementById('articleMontant').value  = '0.0000';
+    document.getElementById('lotSelect').innerHTML   = '<option value="">Aucune sélection</option>';
+}
+
+/* ── Ligne édition inline ───────────────────────────── */
+function showEditRow(id) {
+    document.getElementById('ligne-row-'  + id).style.display = 'none';
+    document.getElementById('ligne-edit-' + id).style.display = '';
+}
+function hideEditRow(id) {
+    document.getElementById('ligne-row-'  + id).style.display = '';
+    document.getElementById('ligne-edit-' + id).style.display = 'none';
+}
+
+/* ── Remise / ajustement snel opslaan ───────────────── */
+function saveAdjust() {
+    var remise = document.getElementById('remiseInput').value;
+    var ajust  = document.getElementById('ajustInput').value;
+    // Vul hidden inputs in headerForm en submit
+    document.querySelector('[form="headerForm"][name="remise_globale"]').value = remise;
+    document.querySelector('[form="headerForm"][name="ajustement"]').value     = ajust;
+    document.getElementById('headerForm').submit();
+}
+</script>
+</body>
+</html>
