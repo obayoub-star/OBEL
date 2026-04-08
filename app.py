@@ -422,70 +422,142 @@ def producten():
 
 
 # ─── PRODUCT TOEVOEGEN ────────────────────────────────────────────────────────
+@app.route('/produit/nouveau', methods=['GET'])
+@login_required
+def nouveau_produit():
+    conn = get_db_connection()
+    types_element = conn.execute('SELECT * FROM types_element ORDER BY nom').fetchall()
+    categories    = conn.execute('SELECT * FROM categories    ORDER BY nom').fetchall()
+    conn.close()
+    return render_template('product_new.html',
+                           types_element=types_element, categories=categories)
+
+
 @app.route('/add', methods=['POST'])
 @login_required
 def add():
     conn = get_db_connection()
     conn.execute('''
-        INSERT INTO produits (nom, marque, reference, prix_dernier_achat,
-                              stock_min_securite, statut,
+        INSERT INTO produits (nom, marque, reference, code_barres, description,
+                              stock_min_securite, statut, tva, no_fiche, tag,
+                              categorie_id, type_element_id,
+                              emplacement, bloc, rangee,
                               prix_tarif_1, prix_tarif_2, prix_tarif_3)
-        VALUES (?, ?, ?, ?, ?, 'Actif', 20, 14.15, 75)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ''', (
         request.form.get('nom', ''),
         request.form.get('marque', ''),
         request.form.get('reference', ''),
-        request.form.get('prix_achat') or 0,
-        request.form.get('stock_min')  or 0,
+        request.form.get('code_barres', ''),
+        request.form.get('description', ''),
+        request.form.get('stock_min_securite') or 0,
+        request.form.get('statut', 'Actif'),
+        request.form.get('tva') or 20,
+        request.form.get('no_fiche', ''),
+        request.form.get('tag', ''),
+        request.form.get('categorie_id') or None,
+        request.form.get('type_element_id') or None,
+        request.form.get('emplacement', ''),
+        request.form.get('bloc', ''),
+        request.form.get('rangee', ''),
+        request.form.get('prix_tarif_1') or 20,
+        request.form.get('prix_tarif_2') or 14.15,
+        request.form.get('prix_tarif_3') or 75,
     ))
+    new_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
     conn.commit()
     conn.close()
-    return redirect(url_for('producten'))
+    return redirect(url_for('produit_detail', id=new_id, tab='informations'))
 
 
 # ─── PRODUCTS IMPORTEREN VIA CSV ──────────────────────────────────────────────
+def _detect_csv_delimiter(sample):
+    """Detect whether CSV uses comma or semicolon as delimiter."""
+    semicolons = sample.count(';')
+    commas     = sample.count(',')
+    return ';' if semicolons > commas else ','
+
+
 @app.route('/import-produits', methods=['POST'])
 @login_required
 def import_produits():
     file = request.files.get('csv_file')
     if not file:
         return redirect(url_for('producten'))
-    stream = io.StringIO(file.stream.read().decode('utf-8-sig'))
-    reader = csv.DictReader(stream)
+    raw    = file.stream.read().decode('utf-8-sig')
+    delim  = _detect_csv_delimiter(raw[:2000])
+    stream = io.StringIO(raw)
+    reader = csv.DictReader(stream, delimiter=delim)
+    # Normalize headers: strip whitespace and lowercase for matching
     conn   = get_db_connection()
+    count  = 0
     for row in reader:
+        # Strip whitespace from all keys and values
+        row = {k.strip(): (v.strip() if isinstance(v, str) else v) for k, v in row.items() if k}
+        # Skip completely empty rows
+        nom = row.get('nom') or row.get('Nom') or row.get('NOM') or ''
+        if not nom.strip():
+            continue
+        ref   = row.get('reference') or row.get('Reference') or row.get('REF') or row.get('ref') or ''
+        marq  = row.get('marque') or row.get('Marque') or row.get('MARQUE') or ''
+        cb    = row.get('code_barres') or row.get('code barres') or row.get('Code Barres') or ''
+        desc  = row.get('description') or row.get('Description') or ''
+        stmin = row.get('stock_min_securite') or row.get('stock_min') or row.get('Stock Min') or 0
+        tag   = row.get('tag') or row.get('Tag') or ''
+        cat_n = row.get('categorie') or row.get('Categorie') or row.get('Catégorie') or ''
+        type_n = row.get('type_element') or row.get('Type Element') or row.get('type') or ''
+        t1    = row.get('prix_tarif_1') or row.get('prix_vente') or row.get('Prix Vente') or 20
+        t2    = row.get('prix_tarif_2') or 14.15
+        t3    = row.get('prix_tarif_3') or 75
+        tva   = row.get('tva') or row.get('TVA') or 20
+
         categorie_id = None
         type_elem_id = None
-        if row.get('categorie', '').strip():
-            cat = conn.execute('SELECT id FROM categories WHERE nom=?', (row['categorie'].strip(),)).fetchone()
+        if str(cat_n).strip():
+            cat = conn.execute('SELECT id FROM categories WHERE nom=?', (cat_n.strip(),)).fetchone()
             if not cat:
-                conn.execute('INSERT INTO categories (nom) VALUES (?)', (row['categorie'].strip(),))
+                conn.execute('INSERT INTO categories (nom) VALUES (?)', (cat_n.strip(),))
                 categorie_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
             else:
                 categorie_id = cat['id']
-        if row.get('type_element', '').strip():
-            te = conn.execute('SELECT id FROM types_element WHERE nom=?', (row['type_element'].strip(),)).fetchone()
+        if str(type_n).strip():
+            te = conn.execute('SELECT id FROM types_element WHERE nom=?', (type_n.strip(),)).fetchone()
             if not te:
-                conn.execute('INSERT INTO types_element (nom) VALUES (?)', (row['type_element'].strip(),))
+                conn.execute('INSERT INTO types_element (nom) VALUES (?)', (type_n.strip(),))
                 type_elem_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
             else:
                 type_elem_id = te['id']
+        try:
+            stmin = int(float(stmin))
+        except (ValueError, TypeError):
+            stmin = 0
+        try:
+            t1 = float(t1)
+        except (ValueError, TypeError):
+            t1 = 20
+        try:
+            t2 = float(t2)
+        except (ValueError, TypeError):
+            t2 = 14.15
+        try:
+            t3 = float(t3)
+        except (ValueError, TypeError):
+            t3 = 75
+        try:
+            tva = float(tva)
+        except (ValueError, TypeError):
+            tva = 20
         conn.execute('''
             INSERT INTO produits (nom, reference, marque, code_barres, description,
-                                  prix_dernier_achat, prix_revient_ttc, stock_min_securite,
-                                  tag, categorie_id, type_element_id, statut,
-                                  prix_tarif_1, prix_tarif_2, prix_tarif_3)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,'Actif',20,14.15,75)
-        ''', (
-            row.get('nom', ''), row.get('reference', ''), row.get('marque', ''),
-            row.get('code_barres', ''), row.get('description', ''),
-            row.get('prix_dernier_achat', 0) or 0,
-            row.get('prix_revient_ttc', 0)   or 0,
-            row.get('stock_min_securite', 0)  or 0,
-            row.get('tag', ''), categorie_id, type_elem_id,
-        ))
+                                  stock_min_securite, tag, categorie_id, type_element_id,
+                                  statut, tva, prix_tarif_1, prix_tarif_2, prix_tarif_3)
+            VALUES (?,?,?,?,?,?,?,?,?,'Actif',?,?,?,?)
+        ''', (nom.strip(), ref, marq, cb, desc, stmin, tag, categorie_id, type_elem_id,
+              tva, t1, t2, t3))
+        count += 1
     conn.commit()
     conn.close()
+    flash(f'{count} produit(s) importé(s) avec succès.', 'success')
     return redirect(url_for('producten'))
 
 
@@ -545,13 +617,11 @@ def produit_detail(id):
 @app.route('/produit/<int:id>/edit', methods=['POST'])
 @login_required
 def edit_produit(id):
-    conn        = get_db_connection()
-    nieuwe_prijs = request.form.get('prix_dernier_achat')
-    huidig      = conn.execute('SELECT prix_dernier_achat FROM produits WHERE id=?', (id,)).fetchone()
+    conn = get_db_connection()
     conn.execute('''
         UPDATE produits SET
             nom=?, reference=?, code_barres=?, description=?,
-            prix_revient_ttc=?, prix_dernier_achat=?, stock_min_securite=?,
+            stock_min_securite=?,
             type_element_id=?, tag=?, categorie_id=?,
             marque=?, emplacement=?, bloc=?, rangee=?,
             statut=?, tva=?, no_fiche=?,
@@ -562,8 +632,6 @@ def edit_produit(id):
         request.form.get('reference'),
         request.form.get('code_barres'),
         request.form.get('description'),
-        request.form.get('prix_revient_ttc') or 0,
-        nieuwe_prijs or 0,
         request.form.get('stock_min_securite') or 0,
         request.form.get('type_element_id')    or None,
         request.form.get('tag'),
@@ -580,13 +648,10 @@ def edit_produit(id):
         request.form.get('prix_tarif_3') or 75,
         id,
     ))
-    if nieuwe_prijs and huidig and float(nieuwe_prijs) != float(huidig['prix_dernier_achat'] or 0):
-        conn.execute('''
-            INSERT INTO historique_achats (produit_id, date_achat, prix, fournisseur, quantite)
-            VALUES (?, date('now'), ?, ?, 1)
-        ''', (id, float(nieuwe_prijs), request.form.get('marque', '')))
     conn.commit()
     conn.close()
+    if request.form.get('_redirect') == 'producten':
+        return redirect(url_for('producten'))
     return redirect(url_for('produit_detail', id=id, tab='informations'))
 
 

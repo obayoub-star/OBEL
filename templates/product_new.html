@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedicaTronic - Nouveau Produit</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+
+    <!-- Breadcrumb + actions -->
+    <div class="detail-header d-flex justify-content-between align-items-center">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0 small">
+                <li class="breadcrumb-item"><a href="{{ url_for('producten') }}">Produits</a></li>
+                <li class="breadcrumb-item active fw-bold">Nouveau Produit</li>
+            </ol>
+        </nav>
+        <div class="d-flex gap-2">
+            <span class="badge bg-success px-3 py-2">Actif</span>
+            <button form="newForm" type="submit" class="btn btn-info text-white btn-sm px-3" style="border-radius:var(--radius-sm);">
+                <i class="fas fa-save me-1"></i> Enregistrer
+            </button>
+            <a href="{{ url_for('producten') }}" class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-sm);">
+                <i class="fas fa-arrow-left me-1"></i> Retour
+            </a>
+        </div>
+    </div>
+
+    <!-- Detail wrapper -->
+    <div class="detail-wrapper">
+
+        <!-- Main content -->
+        <div class="detail-main p-4">
+
+            <form id="newForm" action="{{ url_for('add') }}" method="POST">
+
+                <div class="field-card animate-in">
+                    <div class="mb-3">
+                        <label class="field-label">Nom du produit *</label>
+                        <input type="text" name="nom" class="form-control form-control-sm" placeholder="Ex: DACLON NYLON..." required>
+                    </div>
+                    <div>
+                        <label class="field-label">Description</label>
+                        <textarea name="description" class="form-control form-control-sm" rows="2" placeholder="Description du produit..."></textarea>
+                    </div>
+                </div>
+
+                <div class="field-card animate-in animate-in-delay-1">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="field-label">R&eacute;f&eacute;rence #</label>
+                            <input type="text" name="reference" class="form-control form-control-sm" placeholder="Ex: 000235">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="field-label">N&deg; de Fiche</label>
+                            <input type="text" name="no_fiche" class="form-control form-control-sm" placeholder="">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="field-label">Code-Barres</label>
+                            <input type="text" name="code_barres" class="form-control form-control-sm" placeholder="">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="field-label">Stock minimum de s&eacute;curit&eacute;</label>
+                            <input type="number" name="stock_min_securite" class="form-control form-control-sm" value="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="field-label">TVA (%)</label>
+                            <input type="number" name="tva" class="form-control form-control-sm" step="0.1" value="20">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="field-label">Tag</label>
+                            <input type="text" name="tag" class="form-control form-control-sm" placeholder="">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="field-label">Statut</label>
+                            <select name="statut" class="form-select form-select-sm">
+                                <option value="Actif" selected>Actif</option>
+                                <option value="Inactif">Inactif</option>
+                                <option value="Archiv&eacute;">Archiv&eacute;</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field-card animate-in animate-in-delay-2">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="field-label">Type d'&eacute;l&eacute;ment</label>
+                            <select name="type_element_id" class="form-select form-select-sm">
+                                <option value="">&mdash; S&eacute;lectionner &mdash;</option>
+                                {% for te in types_element %}
+                                <option value="{{ te.id }}">{{ te.nom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="field-label">Cat&eacute;gorie produit</label>
+                            <select name="categorie_id" class="form-select form-select-sm">
+                                <option value="">&mdash; S&eacute;lectionner &mdash;</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}">{{ cat.nom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field-card animate-in animate-in-delay-3">
+                    <h6 class="heading mb-3" style="color:var(--text-secondary); font-size:0.82rem;">
+                        <i class="fas fa-map-marker-alt me-1" style="color:var(--primary);"></i> Localisation
+                    </h6>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="field-label">Marque</label>
+                            <input type="text" name="marque" class="form-control form-control-sm" placeholder="Ex: SMI">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="field-label">Emplacement (Warehouse)</label>
+                            <input type="text" name="emplacement" class="form-control form-control-sm" placeholder="">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="field-label">Bloc</label>
+                            <input type="text" name="bloc" class="form-control form-control-sm" placeholder="">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="field-label">Rang&eacute;e</label>
+                            <input type="text" name="rangee" class="form-control form-control-sm" placeholder="">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Prix de vente -->
+                <div class="field-card animate-in animate-in-delay-4">
+                    <h6 class="heading mb-3" style="font-size:0.92rem;">
+                        <i class="fas fa-tags me-2" style="color:var(--primary);"></i> Prix de Vente
+                    </h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <div class="p-3 rounded-3" style="background:var(--info-light); border:1px solid rgba(12,123,147,0.2);">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold small" style="color:var(--primary);">Tarif 1</span>
+                                    <span class="badge" style="background:var(--primary); color:white; font-size:0.65rem;">Standard</span>
+                                </div>
+                                <input type="number" name="prix_tarif_1"
+                                       class="form-control form-control-sm fw-bold fs-5 border-0 bg-transparent text-center"
+                                       step="0.01" value="20">
+                                <div class="text-center small" style="color:var(--text-tertiary);">dh HT</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded-3" style="background:var(--success-light); border:1px solid rgba(16,185,129,0.2);">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold small" style="color:var(--success);">Tarif 2</span>
+                                    <span class="badge bg-success" style="font-size:0.65rem;">Pr&eacute;f&eacute;rentiel</span>
+                                </div>
+                                <input type="number" name="prix_tarif_2"
+                                       class="form-control form-control-sm fw-bold fs-5 border-0 bg-transparent text-center"
+                                       step="0.01" value="14.15">
+                                <div class="text-center small" style="color:var(--text-tertiary);">dh HT</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded-3" style="background:var(--warning-light); border:1px solid rgba(245,158,11,0.2);">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold small" style="color:var(--warning);">Tarif 3</span>
+                                    <span class="badge bg-warning text-dark" style="font-size:0.65rem;">Premium</span>
+                                </div>
+                                <input type="number" name="prix_tarif_3"
+                                       class="form-control form-control-sm fw-bold fs-5 border-0 bg-transparent text-center"
+                                       step="0.01" value="75">
+                                <div class="text-center small" style="color:var(--text-tertiary);">dh HT</div>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="color:var(--text-tertiary); font-size:0.8rem;" class="mb-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Les prix par client pourront &ecirc;tre assign&eacute;s apr&egrave;s enregistrement.
+                    </p>
+                </div>
+
+            </form>
+
+        </div>
+
+        <!-- Right tab sidebar (single tab for new product) -->
+        <div class="detail-tabs-sidebar">
+            <a href="#" class="detail-tab active">
+                <i class="fas fa-info-circle me-2"></i>Informations
+            </a>
+        </div>
+
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

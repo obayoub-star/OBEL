@@ -29,9 +29,16 @@
             <button form="editForm" type="submit" class="btn btn-info text-white btn-sm px-3" style="border-radius:var(--radius-sm);">
                 <i class="fas fa-save me-1"></i> Enregistrer
             </button>
+            {% if tab == 'informations' %}
+            <button type="submit" form="editForm" name="_redirect" value="producten"
+                    class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-sm);">
+                <i class="fas fa-arrow-left me-1"></i> Retour
+            </button>
+            {% else %}
             <a href="{{ url_for('producten') }}" class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-sm);">
                 <i class="fas fa-arrow-left me-1"></i> Retour
             </a>
+            {% endif %}
             <a href="{{ url_for('delete', id=produit.id) }}"
                class="btn btn-outline-danger btn-sm" style="border-radius:var(--radius-sm);"
                onclick="return confirm('Supprimer ce produit d\u00e9finitivement ?')">
@@ -81,19 +88,6 @@
                         <div class="col-md-6">
                             <label class="field-label">Stock minimum de s&eacute;curit&eacute;</label>
                             <input type="number" name="stock_min_securite" class="form-control form-control-sm" value="{{ produit.stock_min_securite or 0 }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="field-label">Prix de Revient TTC (&euro;)</label>
-                            <input type="number" name="prix_revient_ttc" class="form-control form-control-sm" step="0.01" value="{{ produit.prix_revient_ttc or 0 }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="field-label">Prix dernier achat (&euro;)
-                                <button type="button" class="btn btn-link btn-sm p-0 ms-2" style="color:var(--primary);"
-                                        data-bs-toggle="modal" data-bs-target="#historiqueModal">
-                                    <i class="fas fa-history"></i> Historique
-                                </button>
-                            </label>
-                            <input type="number" name="prix_dernier_achat" class="form-control form-control-sm" step="0.01" value="{{ produit.prix_dernier_achat or 0 }}">
                         </div>
                         <div class="col-md-6">
                             <label class="field-label">TVA (%)</label>
@@ -559,7 +553,6 @@ function autoSelectTarif(sel) {
     var tarif = opt.dataset.tarif || 'T1';
     var prix = TARIF_PRICES[tarif] || TARIF_PRICES['T1'];
     document.getElementById('prixInput').value = prix;
-    // Highlight the matching tarif button
     var btns = document.querySelectorAll('.tarif-btn');
     btns.forEach(function(b) { b.classList.remove('active'); });
     var idx = tarif === 'T1' ? 0 : tarif === 'T2' ? 1 : 2;
@@ -670,8 +663,16 @@ function autoSelectTarif(sel) {
                         <div class="col-md-4"><label class="form-label fw-bold">N&deg; Lot</label><input type="text" name="lot_numero" class="form-control form-control-sm" placeholder="LOT-001"></div>
                         <div class="col-md-4"><label class="form-label fw-bold">Site</label><input type="text" name="site" class="form-control form-control-sm" placeholder="Site A"></div>
                         <div class="col-md-4"><label class="form-label fw-bold">Quantit&eacute;</label><input type="number" name="quantite" class="form-control form-control-sm" value="0" min="0"></div>
-                        <div class="col-md-6"><label class="form-label fw-bold">Date Production</label><input type="date" name="date_production" class="form-control form-control-sm"></div>
-                        <div class="col-md-6"><label class="form-label fw-bold">Date Expiration</label><input type="date" name="date_expiration" class="form-control form-control-sm"></div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Date Production</label>
+                            <input type="date" name="date_production" id="lotDateProd" class="form-control form-control-sm" readonly style="background:#f8f9fa; color:var(--text-tertiary);">
+                            <small class="text-muted">Défini automatiquement à aujourd'hui.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Date Expiration</label>
+                            <input type="date" name="date_expiration" id="lotDateExp" class="form-control form-control-sm">
+                            <small class="text-muted">Saisissez ou utilisez le sélecteur.</small>
+                        </div>
                         <div class="col-12"><hr class="my-1" style="border-color:var(--border-light);"></div>
                         <div class="col-md-4"><label class="form-label fw-bold">Warehouse</label>
                             <select name="warehouse" class="form-select form-select-sm">
@@ -728,5 +729,23 @@ function autoSelectTarif(sel) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Set date_production to today when the lot modal opens
+var addLotModalEl = document.getElementById('addLotModal');
+if (addLotModalEl) {
+    addLotModalEl.addEventListener('show.bs.modal', function () {
+        var today = new Date().toISOString().split('T')[0];
+        var dateProdEl = document.getElementById('lotDateProd');
+        if (dateProdEl) dateProdEl.value = today;
+    });
+}
+
+// Prix modal tarif selector
+function selectTarif(prix, btn) {
+    document.getElementById('prixInput').value = prix;
+    document.querySelectorAll('.tarif-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+}
+</script>
 </body>
 </html>

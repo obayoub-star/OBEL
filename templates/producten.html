@@ -23,9 +23,9 @@
                 <a href="#" class="text-decoration-none" style="color:var(--text-tertiary); padding-bottom:10px; font-size:0.88rem;">Bon de Perte</a>
             </div>
             <div class="d-flex gap-2 pe-1">
-                <button class="btn btn-info text-white fw-bold" style="font-size:0.84rem; border-radius:var(--radius-sm);" data-bs-toggle="modal" data-bs-target="#addModal">
+                <a href="{{ url_for('nouveau_produit') }}" class="btn btn-info text-white fw-bold" style="font-size:0.84rem; border-radius:var(--radius-sm);">
                     <i class="fas fa-plus me-1"></i> Ajouter Produit
-                </button>
+                </a>
                 <button class="btn btn-outline-info fw-bold" style="font-size:0.84rem; border-radius:var(--radius-sm);" data-bs-toggle="modal" data-bs-target="#importModal">
                     <i class="fas fa-file-csv me-1"></i> Importer
                 </button>
@@ -35,11 +35,21 @@
             <button class="btn btn-info text-white btn-sm px-3" style="border-radius:var(--radius-full); font-size:0.76rem;">Tous</button>
             <button class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-full); font-size:0.76rem; border-color:var(--border);">Service</button>
             <button class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-full); font-size:0.76rem; border-color:var(--border);">Produits</button>
-            <button class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-full); font-size:0.76rem; border-color:var(--border);">Mati&egrave;re Premi&egrave;re</button>
         </div>
     </div>
 
     <div class="content-padding">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert" style="border-radius:var(--radius-md);">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
         <!-- Search bar + actions -->
         <div class="d-flex justify-content-between align-items-center mb-3 animate-in">
             <div class="position-relative" style="width: 360px;">
@@ -203,48 +213,6 @@
     </div>
 </div>
 
-<!-- Modal: Add Product -->
-<div class="modal fade" id="addModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Nouveau Produit</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('add') }}" method="POST">
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label fw-bold">Nom du produit *</label>
-                            <input type="text" name="nom" class="form-control" placeholder="Ex: DACLON NYLON..." required>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold">R&eacute;f&eacute;rence</label>
-                            <input type="text" name="reference" class="form-control" placeholder="Ex: 000235">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Marque / Fabricant</label>
-                            <input type="text" name="marque" class="form-control" placeholder="Ex: SMI">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Prix d'achat (&euro;)</label>
-                            <input type="number" name="prix_achat" class="form-control" step="0.01" value="0">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Stock min. s&eacute;curit&eacute;</label>
-                            <input type="number" name="stock_min" class="form-control" value="0">
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-info text-white px-4">Enregistrer</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <!-- Modal: Import CSV -->
 <div class="modal fade" id="importModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -257,7 +225,8 @@
                 <div class="modal-body">
                     <div class="alert" style="background:var(--info-light); color:var(--primary-dark); border:none; border-radius:var(--radius-md); font-size:0.85rem;">
                         <strong>Format CSV attendu :</strong><br>
-                        <code style="font-size:0.8rem;">nom, reference, marque, code_barres, description, prix_dernier_achat, prix_revient_ttc, stock_min_securite, tag, categorie, type_element</code>
+                        <code style="font-size:0.8rem;">nom, reference, marque, code_barres, description, stock_min_securite, tag, categorie, type_element, tva, prix_tarif_1, prix_tarif_2, prix_tarif_3</code><br>
+                        <small style="opacity:0.8;">Séparateur virgule (,) ou point-virgule (;) — détecté automatiquement.</small>
                     </div>
                     <label class="form-label fw-bold">Fichier CSV</label>
                     <input type="file" name="csv_file" class="form-control" accept=".csv" required>
