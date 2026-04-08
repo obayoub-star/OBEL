@@ -147,6 +147,10 @@
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" class="no-print">
 
+{% set doc_type = facture.type_document or 'Facture' %}
+{% set is_bt = doc_type == 'Bon de travail' %}
+{% set doc_titles = {'Facture':'FACTURE','Devis':'DEVIS','Bon de travail':'BON DE TRAVAIL','Bon de livraison':'BON DE LIVRAISON','Avoir':'AVOIR'} %}
+
 <div class="page">
 
     <!-- Header -->
@@ -155,21 +159,43 @@
             <img src="{{ url_for('static', filename='Logo_medicatronic.png') }}" alt="MedicaTronic" style="height:48px;">
         </div>
         <div class="invoice-meta">
-            <div class="label">Facture</div>
+            <div class="label">{{ doc_titles.get(doc_type, 'FACTURE') }}</div>
             <div class="num">{{ facture.numero }}</div>
             <div class="meta-row">
                 <span style="color:#9CAABB; font-size:8pt;">Date :</span>
-                <strong>{{ facture.date_facture or '&mdash;' }}</strong>
+                <strong>{{ facture.date_facture or '' }}</strong>
             </div>
+            {% if not is_bt %}
             <div class="meta-row">
                 <span style="color:#9CAABB; font-size:8pt;">&Eacute;ch&eacute;ance :</span>
-                <strong>{{ facture.date_echeance or '&mdash;' }}</strong>
+                <strong>{{ facture.date_echeance or '' }}</strong>
             </div>
+            {% endif %}
+            {% if facture.client_ref %}
+            <div class="meta-row">
+                <span style="color:#9CAABB; font-size:8pt;">R&eacute;f. Client :</span>
+                <strong>{{ facture.client_ref }}</strong>
+            </div>
+            {% endif %}
+            {% if is_bt and facture.date_livraison_souhaitee %}
+            <div class="meta-row">
+                <span style="color:#9CAABB; font-size:8pt;">Livraison souhait&eacute;e :</span>
+                <strong>{{ facture.date_livraison_souhaitee }}</strong>
+            </div>
+            {% endif %}
+            {% if is_bt and facture.date_peremption_souhaitee %}
+            <div class="meta-row">
+                <span style="color:#9CAABB; font-size:8pt;">P&eacute;remption souhait&eacute;e :</span>
+                <strong>{{ facture.date_peremption_souhaitee }}</strong>
+            </div>
+            {% endif %}
+            {% if not is_bt %}
             <div class="meta-row" style="margin-top:6px;">
                 <span class="statut-badge statut-{{ (facture.statut or 'En').split(' ')[0] }}">
                     {{ facture.statut or 'En instance' }}
                 </span>
             </div>
+            {% endif %}
         </div>
     </div>
 
@@ -208,46 +234,50 @@
     <table class="articles-table">
         <thead>
             <tr>
-                <th style="width:6%">R&eacute;f</th>
-                <th style="width:38%">Article / D&eacute;signation</th>
+                <th style="width:10%">R&eacute;f</th>
+                <th style="{% if is_bt %}width:78%{% else %}width:38%{% endif %}">D&eacute;signation</th>
                 <th class="num" style="width:8%">Qt&eacute;</th>
-                <th class="num" style="width:12%">Prix unitaire</th>
-                <th class="num" style="width:8%">Taxe</th>
-                <th class="num" style="width:8%">Remise</th>
-                <th class="num" style="width:14%">Montant HT</th>
+                {% if not is_bt %}
+                <th class="num" style="width:12%">Unitaire</th>
+                <th class="num" style="width:8%">TVA</th>
+                <th class="num" style="width:14%">Total</th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
             {% for ligne in lignes %}
             <tr>
-                <td style="color:#9CAABB;">{{ ligne.reference or '&mdash;' }}</td>
-                <td><div class="article-name">{{ ligne.designation or '&mdash;' }}</div></td>
+                <td style="color:#9CAABB;">{{ ligne.reference or '' }}</td>
+                <td><div class="article-name">{{ ligne.designation or '' }}</div></td>
                 <td class="num">{{ ligne.quantite }}</td>
+                {% if not is_bt %}
                 <td class="num">{{ "%.2f"|format(ligne.prix_unitaire) }}</td>
                 <td class="num">{{ "%.0f"|format(ligne.tva) }}%</td>
-                <td class="num">{{ "%.0f"|format(ligne.remise) }}</td>
-                <td class="num" style="font-weight:700;">{{ "%.4f"|format(ligne.montant_ht) }}</td>
+                <td class="num" style="font-weight:700;">{{ "%.2f"|format(ligne.montant_ht) }}</td>
+                {% endif %}
             </tr>
             {% else %}
-            <tr><td colspan="7" style="text-align:center; color:#9CAABB; padding:24px;">Aucun article</td></tr>
+            <tr><td colspan="{% if is_bt %}3{% else %}6{% endif %}" style="text-align:center; color:#9CAABB; padding:24px;">Aucun article</td></tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <!-- Totals -->
+    {% if not is_bt %}
+    <!-- Totals (not for BT) -->
     <div class="totaux-wrapper">
         <div class="totaux-box">
-            <div class="total-row"><span class="lbl">Montant HT</span><span class="val">{{ "%.2f"|format(facture.montant_ht or 0) }} dh</span></div>
+            <div class="total-row"><span class="lbl">Montant total</span><span class="val">{{ "%.2f"|format(facture.montant_ht or 0) }} dh</span></div>
             {% if facture.remise_globale %}
             <div class="total-row"><span class="lbl">Remise</span><span class="val" style="color:#EF4444;">- {{ "%.2f"|format(facture.remise_globale) }} dh</span></div>
             {% endif %}
-            <div class="total-row"><span class="lbl">Taxe ({{ "%.0f"|format(facture.montant_tva / facture.montant_ht * 100 if facture.montant_ht else 20) }}%)</span><span class="val">{{ "%.2f"|format(facture.montant_tva or 0) }} dh</span></div>
+            <div class="total-row"><span class="lbl">TVA {{ "%.0f"|format(facture.montant_tva / facture.montant_ht * 100 if facture.montant_ht else 20) }}%</span><span class="val">{{ "%.2f"|format(facture.montant_tva or 0) }} dh</span></div>
             {% if facture.ajustement %}
             <div class="total-row"><span class="lbl">Ajustement</span><span class="val">{{ "%.2f"|format(facture.ajustement) }} dh</span></div>
             {% endif %}
-            <div class="total-row grand"><span class="lbl">Total TTC</span><span class="val">{{ "%.2f"|format(facture.montant_ttc or 0) }} dh</span></div>
+            <div class="total-row grand"><span class="lbl">Total</span><span class="val">{{ "%.2f"|format(facture.montant_ttc or 0) }} dh</span></div>
         </div>
     </div>
+    {% endif %}
 
     {% if facture.remarques or facture.conditions %}
     <hr class="divider-light">

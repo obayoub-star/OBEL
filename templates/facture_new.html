@@ -2,52 +2,90 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>MedicaTronic - Nouvelle facture</title>
+    <title>MedicaTronic - Nouveau document</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 {% include '_sidebar.html' %}
+
+{% set td = type_document or 'Facture' %}
+{% set doc_titles = {'Facture':'Nouvelle facture','Devis':'Nouveau devis','Bon de travail':'Nouveau bon de travail','Bon de livraison':'Nouveau bon de livraison','Avoir':'Nouvel avoir'} %}
+{% set doc_icons = {'Facture':'fa-file-invoice','Devis':'fa-file-alt','Bon de travail':'fa-clipboard-list','Bon de livraison':'fa-truck','Avoir':'fa-undo'} %}
+{% set doc_create = {'Facture':'Cr\u00e9er la facture','Devis':'Cr\u00e9er le devis','Bon de travail':'Cr\u00e9er le bon de travail','Bon de livraison':'Cr\u00e9er le bon de livraison','Avoir':'Cr\u00e9er l\'avoir'} %}
+
 <div class="main-content">
     <div class="detail-header d-flex justify-content-between align-items-center p-3 bg-white border-bottom">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-0 small">
-                <li class="breadcrumb-item"><a href="{{ url_for('ventes') }}">Ventes</a></li>
-                <li class="breadcrumb-item active fw-bold">Nouvelle facture</li>
+                <li class="breadcrumb-item"><a href="{{ url_for('ventes', type_doc=td) }}">Ventes</a></li>
+                <li class="breadcrumb-item active fw-bold">{{ doc_titles.get(td, 'Nouveau document') }}</li>
             </ol>
         </nav>
-        <a href="{{ url_for('ventes') }}" class="btn btn-outline-secondary btn-sm" style="border-radius:var(--radius-sm);">
+        <a href="{{ url_for('ventes', type_doc=td) }}" class="btn btn-outline-secondary btn-sm" style="border-radius:var(--radius-sm);">
             <i class="fas fa-arrow-left me-1"></i> Retour
         </a>
     </div>
     <div class="content-padding" style="max-width:720px;">
         <div class="field-card mt-2 animate-in">
             <h5 class="fw-bold mb-4 heading">
-                <i class="fas fa-file-invoice me-2" style="color:var(--primary);"></i>Nouvelle facture
+                <i class="fas {{ doc_icons.get(td, 'fa-file-invoice') }} me-2" style="color:var(--primary);"></i>{{ doc_titles.get(td, 'Nouveau document') }}
             </h5>
-            <form action="{{ url_for('new_facture') }}" method="POST">
+            <form action="{{ url_for('new_facture', type_doc=td) }}" method="POST">
+                <input type="hidden" name="type_document" value="{{ td }}">
                 <div class="row g-3">
+
+                    <!-- Client (all types) -->
                     <div class="col-12">
                         <label class="form-label fw-bold">Client *</label>
                         <select name="client_id" class="form-select" required>
-                            <option value="">&mdash; S&eacute;lectionner un client &mdash;</option>
+                            <option value="">-- S&eacute;lectionner un client --</option>
                             {% for cl in clients %}
                             <option value="{{ cl.id }}">{{ cl.nom }}</option>
                             {% endfor %}
                         </select>
                     </div>
+
+                    <!-- Date (all types) -->
                     <div class="col-md-6">
-                        <label class="form-label fw-bold">Date de facture</label>
+                        <label class="form-label fw-bold">Date</label>
                         <div class="form-control" style="background:var(--bg); color:var(--text-secondary); border-color:var(--border);">
                             <i class="fas fa-calendar-check me-1" style="color:var(--primary);"></i> {{ today }}
                             <small class="d-block" style="font-size:0.72rem; color:var(--text-tertiary);">Fix&eacute;e automatiquement</small>
                         </div>
                     </div>
+
+                    {% if td in ['Facture', 'Avoir'] %}
+                    <!-- Ech&eacute;ance (Facture, Avoir) -->
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Date d'&eacute;ch&eacute;ance</label>
                         <input type="date" name="date_echeance" class="form-control" value="{{ today }}">
                     </div>
+                    {% endif %}
+
+                    {% if td in ['Facture', 'Devis', 'Avoir'] %}
+                    <!-- Client Ref (Facture, Devis, Avoir) -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">R&eacute;f. Client</label>
+                        <input type="text" name="client_ref" class="form-control" placeholder="Ex: 157">
+                    </div>
+                    {% endif %}
+
+                    {% if td == 'Bon de travail' %}
+                    <!-- BT specific fields -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Date p&eacute;remption souhait&eacute;e</label>
+                        <input type="date" name="date_peremption_souhaitee" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Date de livraison souhait&eacute;e</label>
+                        <input type="date" name="date_livraison_souhaitee" class="form-control" value="{{ today }}">
+                    </div>
+                    {% endif %}
+
+                    {% if td != 'Bon de travail' %}
+                    <!-- Devise (all except BT) -->
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Devise</label>
                         <select name="devise" class="form-select">
@@ -56,19 +94,26 @@
                             <option value="USD">$ - USD</option>
                         </select>
                     </div>
+                    {% endif %}
+
+                    <!-- Emplacement stock (all except BT) -->
+                    {% if td != 'Bon de travail' %}
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Emplacement du stock</label>
                         <input type="text" name="emplacement_stock" class="form-control" placeholder="Ex: Babylon">
                     </div>
+                    {% endif %}
+
+                    <!-- Objet (all) -->
                     <div class="col-12">
                         <label class="form-label fw-bold">Objet</label>
                         <input type="text" name="objet" class="form-control" placeholder="Ex: SUTURE">
                     </div>
                 </div>
                 <div class="d-flex gap-2 mt-4 justify-content-end">
-                    <a href="{{ url_for('ventes') }}" class="btn btn-outline-secondary px-4" style="border-radius:var(--radius-sm);">Annuler</a>
+                    <a href="{{ url_for('ventes', type_doc=td) }}" class="btn btn-outline-secondary px-4" style="border-radius:var(--radius-sm);">Annuler</a>
                     <button type="submit" class="btn btn-info text-white px-4 fw-bold" style="border-radius:var(--radius-sm);">
-                        <i class="fas fa-arrow-right me-1"></i> Cr&eacute;er la facture
+                        <i class="fas fa-arrow-right me-1"></i> {{ doc_create.get(td, 'Cr\u00e9er') }}
                     </button>
                 </div>
             </form>

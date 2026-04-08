@@ -54,6 +54,10 @@ def migrate_db():
         ('clients', 'pays_livraison',       'TEXT'),
         ('clients', 'actif',                'INTEGER DEFAULT 1'),
         ('clients', 'est_fournisseur',      'INTEGER DEFAULT 0'),
+        ('factures', 'type_document',       "TEXT DEFAULT 'Facture'"),
+        ('factures', 'client_ref',          'TEXT'),
+        ('factures', 'date_peremption_souhaitee', 'TEXT'),
+        ('factures', 'date_livraison_souhaitee',  'TEXT'),
     ]
     for table, col, col_type in migrations:
         try:
@@ -96,15 +100,30 @@ def admin_required(f):
 
 
 # ─── FACTURE HELPERS ──────────────────────────────────────────────────────────
-def generate_numero_facture(conn):
+DOC_PREFIXES = {
+    'Facture':          'F',
+    'Devis':            'D',
+    'Bon de travail':   'BT',
+    'Bon de livraison': 'BL',
+    'Avoir':            'A',
+}
+
+def generate_numero_document(conn, type_document='Facture'):
+    """Generate document number like F2026-04-000001, D2026-04-000001, etc."""
     today  = datetime.date.today()
-    prefix = f"{today.year}-{today.month:02d}-"
+    code   = DOC_PREFIXES.get(type_document, 'F')
+    prefix = f"{code}{today.year}-{today.month:02d}-"
     last   = conn.execute(
         "SELECT numero FROM factures WHERE numero LIKE ? ORDER BY numero DESC LIMIT 1",
         (f"{prefix}%",)
     ).fetchone()
     seq = int(last['numero'].rsplit('-', 1)[-1]) + 1 if last else 1
     return f"{prefix}{seq:06d}"
+
+
+def generate_numero_facture(conn):
+    """Backward compatible wrapper."""
+    return generate_numero_document(conn, 'Facture')
 
 
 def recalculate_facture(conn, facture_id):
@@ -1093,16 +1112,24 @@ def delete(id):
 
 # ─── VENTES : LISTE ───────────────────────────────────────────────────────────
 @app.route('/ventes')
+@app.route('/ventes/<type_doc>')
 @login_required
-def ventes():
-    conn   = get_db_connection()
-    search = request.args.get('search', '').strip()
-    statut = request.args.get('statut', '')
+def ventes(type_doc=None):
+    conn      = get_db_connection()
+    search    = request.args.get('search', '').strip()
+    statut    = request.args.get('statut', '')
+    type_document = type_doc or request.args.get('type', 'Facture')
+    if type_document not in DOC_PREFIXES:
+        type_document = 'Facture'
+
     query  = '''
         SELECT f.*, cl.nom AS client_nom
         FROM factures f LEFT JOIN clients cl ON f.client_id = cl.id
     '''
     params, wheres = [], []
+    # Filter by document type
+    wheres.append("(f.type_document = ? OR (f.type_document IS NULL AND ? = 'Facture'))")
+    params += [type_document, type_document]
     if search:
         wheres.append('(f.numero LIKE ? OR cl.nom LIKE ? OR f.objet LIKE ?)')
         params += [f'%{search}%', f'%{search}%', f'%{search}%']
@@ -1113,47 +1140,58 @@ def ventes():
         query += ' WHERE ' + ' AND '.join(wheres)
     query   += ' ORDER BY f.date_facture DESC'
     factures = conn.execute(query, params).fetchall()
-    stats    = conn.execute('''
-        SELECT statut, COUNT(*) AS nb, SUM(montant_ttc) AS total
-        FROM factures GROUP BY statut
-    ''').fetchall()
-    total_all = conn.execute('SELECT COUNT(*) AS n FROM factures').fetchone()['n']
-    total_ttc = conn.execute('SELECT COALESCE(SUM(montant_ttc),0) AS s FROM factures').fetchone()['s']
+
+    # Stats for this document type only
+    stats_query = "SELECT statut, COUNT(*) AS nb, SUM(montant_ttc) AS total FROM factures WHERE (type_document = ? OR (type_document IS NULL AND ? = 'Facture')) GROUP BY statut"
+    stats    = conn.execute(stats_query, (type_document, type_document)).fetchall()
+    total_all = sum(s['nb'] for s in stats)
+    total_ttc = sum(s['total'] or 0 for s in stats)
     conn.close()
     stats_dict = {s['statut']: {'nb': s['nb'], 'total': s['total']} for s in stats}
     return render_template('ventes.html',
                            factures=factures, stats=stats_dict,
                            total_all=total_all, total_ttc=total_ttc,
-                           search_query=search, statut_filtre=statut)
+                           search_query=search, statut_filtre=statut,
+                           type_document=type_document)
 
 
-# ─── VENTES : NOUVELLE FACTURE ────────────────────────────────────────────────
+# ─── VENTES : NOUVELLE FACTURE / DOCUMENT ─────────────────────────────────────
 @app.route('/ventes/new', methods=['GET', 'POST'])
+@app.route('/ventes/new/<type_doc>', methods=['GET', 'POST'])
 @login_required
-def new_facture():
+def new_facture(type_doc=None):
     conn  = get_db_connection()
     today = datetime.date.today().isoformat()
+    type_document = type_doc or request.form.get('type_document', 'Facture')
+    if type_document not in DOC_PREFIXES:
+        type_document = 'Facture'
     if request.method == 'POST':
-        numero    = generate_numero_facture(conn)
+        numero    = generate_numero_document(conn, type_document)
         client_id = request.form.get('client_id') or None
-        # Datum is altijd vandaag, niet van formulier
         conn.execute('''
             INSERT INTO factures
                 (numero, client_id, date_facture, date_echeance, devise,
-                 emplacement_stock, objet, statut,
+                 emplacement_stock, objet, statut, type_document,
+                 client_ref, date_peremption_souhaitee, date_livraison_souhaitee,
                  montant_ht, remise_globale, montant_tva, ajustement, montant_ttc)
-            VALUES (?,?,?,?,?,?,?,'En instance',0,0,0,0,0)
-        ''', (numero, client_id, today, today,
+            VALUES (?,?,?,?,?,?,?,'En instance',?,?,?,?,0,0,0,0,0)
+        ''', (numero, client_id, today,
+              request.form.get('date_echeance') or today,
               request.form.get('devise', 'MAD'),
               request.form.get('emplacement_stock', ''),
-              request.form.get('objet', '')))
+              request.form.get('objet', ''),
+              type_document,
+              _f(request.form.get('client_ref', '')),
+              _f(request.form.get('date_peremption_souhaitee', '')),
+              _f(request.form.get('date_livraison_souhaitee', '')),
+              ))
         conn.commit()
         fid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
         conn.close()
         return redirect(url_for('edit_facture', id=fid))
     clients = conn.execute('SELECT * FROM clients WHERE (est_fournisseur IS NULL OR est_fournisseur = 0) ORDER BY nom').fetchall()
     conn.close()
-    return render_template('facture_new.html', clients=clients, today=today)
+    return render_template('facture_new.html', clients=clients, today=today, type_document=type_document)
 
 
 # ─── VENTES : ÉDITER FACTURE ──────────────────────────────────────────────────

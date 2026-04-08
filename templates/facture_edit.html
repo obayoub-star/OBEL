@@ -105,6 +105,10 @@
 
 {% include '_sidebar.html' %}
 
+{% set doc_type = facture.type_document or 'Facture' %}
+{% set is_bt = doc_type == 'Bon de travail' %}
+{% set is_avoir = doc_type == 'Avoir' %}
+
 <div class="main-content">
 
     <!-- Header -->
@@ -112,8 +116,9 @@
         <div class="d-flex align-items-center gap-3">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0 small">
-                    <li class="breadcrumb-item"><a href="{{ url_for('ventes') }}">Ventes</a></li>
-                    <li class="breadcrumb-item active fw-bold">&Eacute;diter facture</li>
+                    {% set doc_type = facture.type_document or 'Facture' %}
+                    <li class="breadcrumb-item"><a href="{{ url_for('ventes', type_doc=doc_type) }}">Ventes</a></li>
+                    <li class="breadcrumb-item active fw-bold">{{ doc_type }} {{ facture.numero }}</li>
                 </ol>
             </nav>
             <span class="badge
@@ -194,17 +199,31 @@
                                 <div class="fw-bold heading" style="color:var(--primary); font-size:1.05rem;">{{ facture.numero }}</div>
                             </div>
                             <div class="col-6">
-                                <span style="color:var(--text-tertiary); font-size:0.72rem;">Date facture</span>
-                                <div style="font-weight:600; font-size:0.88rem;">{{ facture.date_facture or '&mdash;' }}</div>
+                                <span style="color:var(--text-tertiary); font-size:0.72rem;">Date</span>
+                                <div style="font-weight:600; font-size:0.88rem;">{{ facture.date_facture or '' }}</div>
                             </div>
+                            {% if not is_bt %}
                             <div class="col-6">
                                 <span style="color:var(--text-tertiary); font-size:0.72rem;">&Eacute;ch&eacute;ance</span>
-                                <div style="font-weight:600; font-size:0.88rem;">{{ facture.date_echeance or '&mdash;' }}</div>
+                                <div style="font-weight:600; font-size:0.88rem;">{{ facture.date_echeance or '' }}</div>
                             </div>
                             <div class="col-6">
                                 <span style="color:var(--text-tertiary); font-size:0.72rem;">Devise</span>
                                 <div style="font-size:0.88rem;">dh - {{ facture.devise or 'MAD' }}</div>
                             </div>
+                            {% endif %}
+                            {% if is_bt %}
+                            <div class="col-6">
+                                <span style="color:var(--text-tertiary); font-size:0.72rem;">Livraison souhait&eacute;e</span>
+                                <div style="font-weight:600; font-size:0.88rem;">{{ facture.date_livraison_souhaitee or '' }}</div>
+                            </div>
+                            {% endif %}
+                            {% if facture.client_ref %}
+                            <div class="col-6">
+                                <span style="color:var(--text-tertiary); font-size:0.72rem;">R&eacute;f. Client</span>
+                                <div style="font-weight:600; font-size:0.88rem;">{{ facture.client_ref }}</div>
+                            </div>
+                            {% endif %}
                             <div class="col-6">
                                 <span style="color:var(--text-tertiary); font-size:0.72rem;">Stock</span>
                                 <div style="font-size:0.88rem;">{{ facture.emplacement_stock or '&mdash;' }}</div>
@@ -235,10 +254,10 @@
                             <label class="form-label">Produit</label>
                             <select name="produit_id" id="produitSelect" class="form-select form-select-sm"
                                     onchange="loadProduitInfo(this.value)">
-                                <option value="">&mdash; Choisir &mdash;</option>
+                                <option value="">-- Choisir --</option>
                                 {% for p in produits %}
                                 <option value="{{ p.id }}" data-ref="{{ p.reference }}" data-nom="{{ p.nom }}" data-tva="{{ p.tva }}">
-                                    [{{ p.reference or p.id }}] {{ p.nom[:45] }}{% if p.nom|length > 45 %}&hellip;{% endif %}
+                                    [{{ p.reference or p.id }}] {{ p.nom[:45] }}{% if p.nom|length > 45 %}...{% endif %}
                                 </option>
                                 {% endfor %}
                             </select>
@@ -247,12 +266,12 @@
                             <label class="form-label">R&eacute;f</label>
                             <input type="text" name="reference" id="articleRef" class="form-control form-control-sm" placeholder="R&eacute;f">
                         </div>
-                        <div class="col-md-5">
+                        <div class="{% if is_bt %}col-md-5{% else %}col-md-3{% endif %}">
                             <label class="form-label">D&eacute;signation</label>
                             <input type="text" name="designation" id="articleDesig" class="form-control form-control-sm" placeholder="Nom du produit / LOT">
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label">Lot</label>
+                            <label class="form-label">{% if is_bt %}Lot{% else %}Lot{% endif %}</label>
                             <select name="lot_id" id="lotSelect" class="form-select form-select-sm">
                                 <option value="">Aucune</option>
                             </select>
@@ -262,10 +281,11 @@
                             <input type="number" name="quantite" id="articleQty" class="form-control form-control-sm"
                                    value="1" min="0.001" step="0.001" onchange="calcMontant()">
                         </div>
+                        {% if not is_bt %}
                         <div class="col-md-2">
                             <label class="form-label">Prix unitaire</label>
                             <input type="number" name="prix_unitaire" id="articlePrix" class="form-control form-control-sm"
-                                   value="0" step="0.01" onchange="calcMontant()">
+                                   value="0" step="{% if is_avoir %}-0.01{% else %}0.01{% endif %}" onchange="calcMontant()">
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">Taxe (%)</label>
@@ -282,6 +302,12 @@
                             <input type="text" id="articleMontant" class="form-control form-control-sm"
                                    style="background:var(--bg);" readonly placeholder="0.00">
                         </div>
+                        {% else %}
+                        <!-- BT: no prices, hidden defaults -->
+                        <input type="hidden" name="prix_unitaire" value="0">
+                        <input type="hidden" name="tva" value="0">
+                        <input type="hidden" name="remise" value="0">
+                        {% endif %}
                         <div class="col-md-2 d-flex gap-2">
                             <button type="button" class="btn btn-sm btn-outline-secondary flex-fill" style="border-radius:var(--radius-sm);" onclick="resetForm()">
                                 <i class="fas fa-sync-alt"></i>
@@ -304,10 +330,12 @@
                             <th>R&eacute;f</th>
                             <th>Article / D&eacute;signation</th>
                             <th>Quantit&eacute;</th>
+                            {% if not is_bt %}
                             <th>Prix Unitaire</th>
                             <th>Taxe</th>
                             <th>Remise</th>
                             <th>Montant HT</th>
+                            {% endif %}
                             <th style="width:60px;"></th>
                         </tr>
                     </thead>
@@ -315,18 +343,20 @@
                         {% for ligne in lignes %}
                         <tr>
                             <td style="color:var(--text-tertiary); font-size:0.75rem;">{{ loop.index }}</td>
-                            <td style="color:var(--text-tertiary); font-size:0.8rem;">{{ ligne.reference or '&mdash;' }}</td>
+                            <td style="color:var(--text-tertiary); font-size:0.8rem;">{{ ligne.reference or '' }}</td>
                             <td style="font-weight:600;">
-                                {{ ligne.designation or ligne.produit_nom or '&mdash;' }}
+                                {{ ligne.designation or ligne.produit_nom or '' }}
                                 {% if ligne.lot_numero %}
                                     <span style="color:var(--text-tertiary); font-size:0.75rem;"> LOT:{{ ligne.lot_numero }}</span>
                                 {% endif %}
                             </td>
                             <td>{{ ligne.quantite }}</td>
+                            {% if not is_bt %}
                             <td>{{ "%.2f"|format(ligne.prix_unitaire) }} dh</td>
                             <td>{{ "%.0f"|format(ligne.tva) }}%</td>
                             <td>{{ "%.0f"|format(ligne.remise) }}</td>
                             <td style="font-weight:700;">{{ "%.4f"|format(ligne.montant_ht) }}</td>
+                            {% endif %}
                             <td>
                                 <form action="{{ url_for('delete_facture_ligne', fid=facture.id, lid=ligne.id) }}"
                                       method="POST" class="d-inline">
@@ -409,6 +439,7 @@
 
             <hr style="border-color:var(--border-light);">
 
+            {% if not is_bt %}
             <h6 class="heading mb-3" style="color:var(--text-tertiary); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em;">Totaux</h6>
             <div class="totals-box">
                 <div class="row-total">
@@ -457,6 +488,8 @@
                     </div>
                 </div>
             </div>
+
+            {% endif %}
 
             <hr style="border-color:var(--border-light);">
             <a href="{{ url_for('print_facture', id=facture.id) }}" target="_blank"
