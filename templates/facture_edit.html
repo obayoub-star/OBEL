@@ -273,23 +273,29 @@
                 <form action="{{ url_for('add_facture_ligne', id=facture.id) }}" method="POST">
                     <input type="hidden" name="produit_id" id="produitId" value="">
                     <div class="row g-2 align-items-end">
-                        <!-- Produit selector (all types) -->
-                        <div class="col-md-3">
-                            <label class="form-label">Produit</label>
-                            <input type="text" id="produitSearch" class="form-control form-control-sm"
-                                   placeholder="Tapez nom ou r&eacute;f&eacute;rence..." autocomplete="off">
-                            <div id="produitSuggestions" style="position:absolute; z-index:999; background:#fff; border:1px solid var(--border); border-radius:var(--radius-sm); max-height:200px; overflow-y:auto; width:260px; display:none; box-shadow:var(--shadow-md);"></div>
-                        </div>
-                        <!-- Ref (all types) -->
+                        <!-- Ref -->
                         <div class="col-md-2">
                             <label class="form-label">R&eacute;f</label>
                             <input type="text" name="reference" id="articleRef" class="form-control form-control-sm"
                                    placeholder="R&eacute;f" onblur="lookupByRef(this.value)">
                         </div>
-                        <!-- D&eacute;signation (all types) -->
-                        <div class="col-md-{% if is_bt %}2{% else %}3{% endif %}">
+                        <!-- Naam (voor USP) — dient als zoekbalk met live dropdown -->
+                        <div class="col-md-3" style="position:relative;">
+                            <label class="form-label">Naam</label>
+                            <input type="text" id="produitSearch" class="form-control form-control-sm"
+                                   placeholder="Typ naam of ref..." autocomplete="off">
+                            <div id="produitSuggestions"
+                                 style="position:absolute; top:100%; left:0; right:0; z-index:1000;
+                                        background:#fff; border:1px solid var(--border);
+                                        border-radius:0 0 var(--radius-sm) var(--radius-sm);
+                                        max-height:220px; overflow-y:auto; display:none;
+                                        box-shadow:var(--shadow-md);"></div>
+                        </div>
+                        <!-- Description (na USP) -->
+                        <div class="col-md-{% if is_bt %}3{% else %}2{% endif %}">
                             <label class="form-label">Description</label>
-                            <input type="text" name="designation" id="articleDesig" class="form-control form-control-sm">
+                            <input type="text" name="designation" id="articleDesig" class="form-control form-control-sm"
+                                   placeholder="USP...">
                         </div>
                         <!-- Lot (all types) -->
                         <div class="col-md-2">
@@ -350,6 +356,7 @@
                         <tr>
                             <th style="width:30px;"></th>
                             <th>R&eacute;f</th>
+                            <th>Naam</th>
                             <th>Description</th>
                             {% if is_bt %}
                             <th>Lot</th>
@@ -367,10 +374,15 @@
                     </thead>
                     <tbody>
                         {% for ligne in lignes %}
+                        {% set p_nom = ligne.produit_nom or '' %}
+                        {% set usp_pos = p_nom.upper().find('USP') %}
+                        {% set naam = p_nom[:usp_pos].strip() if usp_pos > 0 else p_nom %}
+                        {% set desc = ligne.designation if ligne.designation else (p_nom[usp_pos:].strip() if usp_pos >= 0 else '') %}
                         <tr>
                             <td style="color:var(--text-tertiary); font-size:0.75rem;">{{ loop.index }}</td>
                             <td style="color:var(--text-tertiary); font-size:0.8rem;">{{ ligne.reference or '' }}</td>
-                            <td style="font-weight:600;">{{ ligne.designation or ligne.produit_nom or '' }}</td>
+                            <td style="font-weight:600; font-size:0.83rem;">{{ naam }}</td>
+                            <td style="font-size:0.83rem;">{{ desc }}</td>
                             {% if is_bt %}
                             <td style="font-size:0.82rem;">{{ ligne.lot_numero or '' }}</td>
                             <td>{{ ligne.quantite }}</td>
@@ -621,10 +633,9 @@
 <script>
 var CLIENT_ID = '{{ facture.client_id or "" }}';
 
-// All products for autocomplete (name + reference)
 var ALL_PRODUITS = [
     {% for p in produits %}
-    { id: {{ p.id }}, nom: {{ p.nom | tojson }}, ref: {{ (p.reference or '') | tojson }}, stock: {{ p.stock_total }} }{% if not loop.last %},{% endif %}
+    { id: {{ p.id }}, nom: {{ p.nom | tojson }}, ref: {{ (p.reference or '') | tojson }} }{% if not loop.last %},{% endif %}
     {% endfor %}
 ];
 
@@ -636,8 +647,8 @@ function toggleAddForm() {
     chevron.className  = visible ? 'fas fa-chevron-down ms-auto small' : 'fas fa-chevron-up ms-auto small';
 }
 
-// Product search autocomplete
-var searchEl = document.getElementById('produitSearch');
+// ── Naam autocomplete ──────────────────────────────────────────────────────
+var searchEl  = document.getElementById('produitSearch');
 var suggestEl = document.getElementById('produitSuggestions');
 
 searchEl.addEventListener('input', function() {
@@ -646,17 +657,17 @@ searchEl.addEventListener('input', function() {
     if (!q) { suggestEl.style.display = 'none'; return; }
     var matches = ALL_PRODUITS.filter(function(p) {
         return p.nom.toLowerCase().includes(q) || p.ref.toLowerCase().includes(q);
-    }).slice(0, 10);
-    if (matches.length === 0) { suggestEl.style.display = 'none'; return; }
+    }).slice(0, 12);
+    if (!matches.length) { suggestEl.style.display = 'none'; return; }
     matches.forEach(function(p) {
         var div = document.createElement('div');
-        div.style.cssText = 'padding:8px 12px; cursor:pointer; font-size:0.84rem; border-bottom:1px solid var(--border-light);';
-        div.innerHTML = '<strong>' + (p.ref ? p.ref + ' — ' : '') + '</strong>' + p.nom.substring(0, 60);
+        div.style.cssText = 'padding:7px 12px; cursor:pointer; font-size:0.82rem; border-bottom:1px solid #eee;';
+        div.onmouseover = function(){ this.style.background='var(--primary-light)'; };
+        div.onmouseout  = function(){ this.style.background=''; };
+        div.innerHTML = (p.ref ? '<span style="color:var(--primary);font-weight:600;">' + p.ref + '</span> — ' : '') + p.nom;
         div.addEventListener('mousedown', function(e) {
             e.preventDefault();
-            selectProduit(p.id);
-            searchEl.value = p.nom;
-            suggestEl.style.display = 'none';
+            fillFromProduit(p.id);
         });
         suggestEl.appendChild(div);
     });
@@ -664,31 +675,23 @@ searchEl.addEventListener('input', function() {
 });
 
 searchEl.addEventListener('blur', function() {
-    setTimeout(function() { suggestEl.style.display = 'none'; }, 150);
+    setTimeout(function() { suggestEl.style.display = 'none'; }, 200);
 });
 
-function selectProduit(produitId) {
+function fillFromProduit(produitId) {
     document.getElementById('produitId').value = produitId;
-    loadProduitInfo(produitId);
-}
-
-function loadProduitInfo(produitId) {
-    if (!produitId) return;
     fetch('/api/produit/' + produitId + '/lots?client_id=' + CLIENT_ID)
         .then(function(r) { return r.json(); })
         .then(function(data) {
-            document.getElementById('articlePrix').value  = data.prix || 0;
-            document.getElementById('articleTva').value   = data.tva  || 20;
+            searchEl.value = data.nom_avant || data.nom || '';
+            suggestEl.style.display = 'none';
             document.getElementById('articleRef').value   = data.reference || '';
-            document.getElementById('articleDesig').value = data.designation || data.nom || '';
-            var lotSel = document.getElementById('lotSelect');
-            lotSel.innerHTML = '<option value="">Aucune</option>';
-            (data.lots || []).forEach(function(l) {
-                var o = document.createElement('option');
-                o.value = l.id;
-                o.text  = l.lot_numero + ' (' + l.quantite + ' — ' + (l.warehouse || '?') + ')';
-                lotSel.appendChild(o);
-            });
+            document.getElementById('articleDesig').value = data.designation || '';
+            var pEl = document.getElementById('articlePrix');
+            if (pEl) pEl.value = data.prix || 0;
+            var tEl = document.getElementById('articleTva');
+            if (tEl) tEl.value = data.tva || 20;
+            fillLots(data.lots || []);
             calcMontant();
         });
 }
@@ -701,29 +704,34 @@ function lookupByRef(ref) {
         .then(function(data) {
             if (!data.found) return;
             document.getElementById('produitId').value    = data.id;
-            document.getElementById('articlePrix').value  = data.prix || 0;
-            document.getElementById('articleTva').value   = data.tva  || 20;
-            document.getElementById('articleDesig').value = data.designation || data.nom || '';
-            searchEl.value = data.nom || '';
-            var lotSel = document.getElementById('lotSelect');
-            lotSel.innerHTML = '<option value="">Aucune</option>';
-            (data.lots || []).forEach(function(l) {
-                var o = document.createElement('option');
-                o.value = l.id;
-                o.text  = l.lot_numero + ' (' + l.quantite + ' — ' + (l.warehouse || '?') + ')';
-                lotSel.appendChild(o);
-            });
+            searchEl.value = data.nom_avant || data.nom || '';
+            document.getElementById('articleDesig').value = data.designation || '';
+            var pEl = document.getElementById('articlePrix');
+            if (pEl) pEl.value = data.prix || 0;
+            var tEl = document.getElementById('articleTva');
+            if (tEl) tEl.value = data.tva || 20;
+            fillLots(data.lots || []);
             calcMontant();
         });
 }
 
+function fillLots(lots) {
+    var lotSel = document.getElementById('lotSelect');
+    lotSel.innerHTML = '<option value="">--</option>';
+    lots.forEach(function(l) {
+        var o = document.createElement('option');
+        o.value = l.id;
+        o.text  = l.lot_numero + ' (' + l.quantite + ' — ' + (l.warehouse || '?') + ')';
+        lotSel.appendChild(o);
+    });
+}
+
 function calcMontant() {
-    var qty    = parseFloat(document.getElementById('articleQty').value)    || 0;
-    var prix   = parseFloat(document.getElementById('articlePrix').value)   || 0;
-    var remise = parseFloat(document.getElementById('articleRemise') ? document.getElementById('articleRemise').value : 0) || 0;
-    var ht     = qty * prix * (1 - remise / 100);
-    var montEl = document.getElementById('articleMontant');
-    if (montEl) montEl.value = ht.toFixed(4);
+    var qty  = parseFloat(document.getElementById('articleQty').value) || 0;
+    var prix = parseFloat((document.getElementById('articlePrix') || {}).value) || 0;
+    var ht   = qty * prix;
+    var el   = document.getElementById('articleMontant');
+    if (el) el.value = ht.toFixed(2);
 }
 
 function resetForm() {
@@ -732,11 +740,10 @@ function resetForm() {
     document.getElementById('articleRef').value    = '';
     document.getElementById('articleDesig').value  = '';
     document.getElementById('articleQty').value    = 1;
-    document.getElementById('articlePrix').value   = 0;
-    if (document.getElementById('articleTva'))    document.getElementById('articleTva').value    = 20;
-    if (document.getElementById('articleRemise')) document.getElementById('articleRemise').value = 0;
-    if (document.getElementById('articleMontant')) document.getElementById('articleMontant').value = '0.0000';
-    document.getElementById('lotSelect').innerHTML = '<option value="">Aucune</option>';
+    var pEl = document.getElementById('articlePrix');   if (pEl) pEl.value = 0;
+    var tEl = document.getElementById('articleTva');    if (tEl) tEl.value = 20;
+    var mEl = document.getElementById('articleMontant');if (mEl) mEl.value = '0.00';
+    document.getElementById('lotSelect').innerHTML = '<option value="">--</option>';
     suggestEl.style.display = 'none';
 }
 

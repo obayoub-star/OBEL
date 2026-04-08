@@ -1376,14 +1376,35 @@ def update_facture_statut(id):
     # Deduct stock when marking as Payé (only once, not if already Payé)
     if new_statut == 'Payé' and old_statut != 'Payé':
         lignes = conn.execute(
-            'SELECT lot_id, quantite FROM facture_lignes WHERE facture_id=? AND lot_id IS NOT NULL',
+            'SELECT produit_id, lot_id, quantite FROM facture_lignes WHERE facture_id=?',
             (id,)
         ).fetchall()
         for ligne in lignes:
-            conn.execute(
-                'UPDATE lots SET quantite = MAX(0, quantite - ?) WHERE id=?',
-                (ligne['quantite'], ligne['lot_id'])
-            )
+            if ligne['lot_id']:
+                # Deduct from the specific selected lot
+                conn.execute(
+                    'UPDATE lots SET quantite = MAX(0, quantite - ?) WHERE id=?',
+                    (ligne['quantite'], ligne['lot_id'])
+                )
+            elif ligne['produit_id']:
+                # No lot selected → FIFO: deduct from earliest-expiring lots
+                remaining = float(ligne['quantite'])
+                lots_fifo = conn.execute(
+                    '''SELECT id, quantite FROM lots
+                       WHERE produit_id=? AND quantite>0
+                       ORDER BY CASE WHEN date_expiration IS NULL OR date_expiration='' THEN 1 ELSE 0 END,
+                                date_expiration ASC, id ASC''',
+                    (ligne['produit_id'],)
+                ).fetchall()
+                for lot in lots_fifo:
+                    if remaining <= 0:
+                        break
+                    deduct = min(float(lot['quantite']), remaining)
+                    conn.execute(
+                        'UPDATE lots SET quantite = MAX(0, quantite - ?) WHERE id=?',
+                        (deduct, lot['id'])
+                    )
+                    remaining -= deduct
     conn.commit()
     conn.close()
     return redirect(url_for('edit_facture', id=id))
@@ -1477,10 +1498,11 @@ def api_lots_produit(produit_id):
                     prix = produit['prix_tarif_3']
                 else:
                     prix = produit['prix_tarif_1']
-    # Build designation starting from "USP" if present
+    # Split name into before/after USP
     nom = produit['nom'] if produit else ''
     usp_idx = nom.upper().find('USP')
-    designation = nom[usp_idx:] if usp_idx >= 0 else nom
+    nom_avant = nom[:usp_idx].strip() if usp_idx > 0 else nom
+    designation = nom[usp_idx:].strip() if usp_idx >= 0 else ''
     conn.close()
     return jsonify({
         'lots':        [{'id': l['id'], 'lot_numero': l['lot_numero'],
@@ -1488,6 +1510,7 @@ def api_lots_produit(produit_id):
         'prix':        prix,
         'tva':         produit['tva'] if produit else 20,
         'nom':         nom,
+        'nom_avant':   nom_avant,
         'reference':   produit['reference'] if produit else '',
         'designation': designation,
     })
@@ -1527,7 +1550,8 @@ def api_produit_by_reference():
                     prix = produit['prix_tarif_3'] or 75
     nom = produit['nom'] or ''
     usp_idx = nom.upper().find('USP')
-    designation = nom[usp_idx:] if usp_idx >= 0 else nom
+    nom_avant   = nom[:usp_idx].strip() if usp_idx > 0 else nom
+    designation = nom[usp_idx:].strip() if usp_idx >= 0 else ''
     lots = conn.execute(
         'SELECT id, lot_numero, quantite, warehouse FROM lots WHERE produit_id=? AND quantite>0',
         (produit['id'],)
@@ -1537,6 +1561,7 @@ def api_produit_by_reference():
         'found':       True,
         'id':          produit['id'],
         'nom':         nom,
+        'nom_avant':   nom_avant,
         'reference':   produit['reference'] or '',
         'designation': designation,
         'prix':        prix,
