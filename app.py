@@ -58,6 +58,7 @@ def migrate_db():
         ('factures', 'client_ref',          'TEXT'),
         ('factures', 'date_peremption_souhaitee', 'TEXT'),
         ('factures', 'date_livraison_souhaitee',  'TEXT'),
+        ('factures', 'parent_id',           'INTEGER'),
     ]
     for table, col, col_type in migrations:
         try:
@@ -1275,7 +1276,9 @@ def edit_facture(id):
         conn.close()
         return redirect(url_for('ventes'))
     lignes   = conn.execute('''
-        SELECT fl.*, p.nom AS produit_nom, p.reference AS produit_ref, l.lot_numero
+        SELECT fl.*, p.nom AS produit_nom, p.reference AS produit_ref,
+               l.lot_numero, l.warehouse AS lot_warehouse, l.rangee AS lot_rangee,
+               l.date_expiration AS lot_date_expiration
         FROM facture_lignes fl
         LEFT JOIN produits p ON fl.produit_id = p.id
         LEFT JOIN lots     l ON fl.lot_id     = l.id
@@ -1287,10 +1290,19 @@ def edit_facture(id):
                COALESCE((SELECT SUM(l.quantite) FROM lots l WHERE l.produit_id=p.id),0) AS stock_total
         FROM produits p ORDER BY p.nom
     ''').fetchall()
+    # Linked documents (parent + children)
+    linked_docs = []
+    if facture['parent_id']:
+        parent = conn.execute('SELECT id, numero, type_document FROM factures WHERE id=?', (facture['parent_id'],)).fetchone()
+        if parent:
+            linked_docs.append(parent)
+    children = conn.execute('SELECT id, numero, type_document FROM factures WHERE parent_id=? ORDER BY id', (id,)).fetchall()
+    linked_docs.extend(children)
     conn.close()
     return render_template('facture_edit.html',
                            facture=facture, lignes=lignes,
-                           clients=clients, produits=produits)
+                           clients=clients, produits=produits,
+                           linked_docs=linked_docs)
 
 
 # ─── VENTES : ENTÊTE FACTURE ──────────────────────────────────────────────────
@@ -1421,10 +1433,61 @@ def api_lots_produit(produit_id):
 @admin_required
 def delete_facture(id):
     conn = get_db_connection()
+    facture = conn.execute('SELECT type_document FROM factures WHERE id=?', (id,)).fetchone()
+    doc_type = facture['type_document'] if facture else 'Facture'
     conn.execute('DELETE FROM factures WHERE id=?', (id,))
     conn.commit()
     conn.close()
-    return redirect(url_for('ventes'))
+    return redirect(url_for('ventes', type_doc=doc_type))
+
+
+# ─── VENTES : CONVERTIR DOCUMENT ──────────────────────────────────────────────
+@app.route('/facture/<int:id>/convertir/<target_type>', methods=['POST'])
+@login_required
+def convertir_document(id, target_type):
+    """Convert a document to another type, copying all lines and linking parent."""
+    if target_type not in DOC_PREFIXES:
+        return redirect(url_for('edit_facture', id=id))
+    conn = get_db_connection()
+    source = conn.execute('SELECT * FROM factures WHERE id=?', (id,)).fetchone()
+    if not source:
+        conn.close()
+        return redirect(url_for('ventes'))
+    today = datetime.date.today().isoformat()
+    numero = generate_numero_document(conn, target_type)
+    # Create new document linked to source
+    conn.execute('''
+        INSERT INTO factures
+            (numero, client_id, date_facture, date_echeance, devise,
+             emplacement_stock, objet, statut, type_document,
+             client_ref, date_peremption_souhaitee, date_livraison_souhaitee,
+             parent_id, montant_ht, remise_globale, montant_tva, ajustement, montant_ttc)
+        VALUES (?,?,?,?,?,?,?,'En instance',?,?,?,?,?,0,0,0,0,0)
+    ''', (numero, source['client_id'], today, source['date_echeance'],
+          source['devise'], source['emplacement_stock'], source['objet'],
+          target_type, source['client_ref'],
+          source['date_peremption_souhaitee'], source['date_livraison_souhaitee'],
+          id))
+    new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    # Copy all line items
+    lignes = conn.execute('SELECT * FROM facture_lignes WHERE facture_id=?', (id,)).fetchall()
+    is_avoir = target_type == 'Avoir'
+    for l in lignes:
+        prix = -abs(l['prix_unitaire']) if is_avoir else l['prix_unitaire']
+        mht  = -abs(l['montant_ht']) if is_avoir else l['montant_ht']
+        conn.execute('''
+            INSERT INTO facture_lignes
+                (facture_id, produit_id, lot_id, reference, designation,
+                 quantite, prix_unitaire, tva, remise, montant_ht)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+        ''', (new_id, l['produit_id'], l['lot_id'], l['reference'],
+              l['designation'], l['quantite'], prix, l['tva'], l['remise'], mht))
+    conn.commit()
+    # Recalculate totals
+    recalculate_facture(conn, new_id)
+    conn.commit()
+    conn.close()
+    return redirect(url_for('edit_facture', id=new_id))
 
 
 # ─── VENTES : PRINT / PDF ────────────────────────────────────────────────────
@@ -1442,9 +1505,13 @@ def print_facture(id):
     if not facture:
         conn.close()
         return redirect(url_for('ventes'))
-    lignes = conn.execute(
-        'SELECT * FROM facture_lignes WHERE facture_id=? ORDER BY id', (id,)
-    ).fetchall()
+    lignes = conn.execute('''
+        SELECT fl.*, l.lot_numero, l.warehouse AS lot_warehouse,
+               l.rangee AS lot_rangee, l.date_expiration AS lot_date_expiration
+        FROM facture_lignes fl
+        LEFT JOIN lots l ON fl.lot_id = l.id
+        WHERE fl.facture_id=? ORDER BY fl.id
+    ''', (id,)).fetchall()
     conn.close()
     return render_template('facture_print.html', facture=facture, lignes=lignes)
 

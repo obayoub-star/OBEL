@@ -130,6 +130,28 @@
             </span>
         </div>
         <div class="d-flex gap-2">
+            <!-- Convertir dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-info dropdown-toggle" style="border-radius:var(--radius-sm);" data-bs-toggle="dropdown">
+                    <i class="fas fa-random me-1"></i> Convertir en
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" style="border-radius:var(--radius-md); border:1px solid var(--border-light); box-shadow:var(--shadow-lg);">
+                    {% set convert_targets = {'Devis':['Facture','Bon de travail','Bon de livraison'], 'Facture':['Bon de livraison','Avoir'], 'Bon de travail':['Facture','Bon de livraison'], 'Bon de livraison':['Facture'], 'Avoir':[]} %}
+                    {% set target_icons = {'Facture':'fa-file-invoice','Devis':'fa-file-alt','Bon de travail':'fa-clipboard-list','Bon de livraison':'fa-truck','Avoir':'fa-undo'} %}
+                    {% for target in convert_targets.get(doc_type, []) %}
+                    <li>
+                        <form action="{{ url_for('convertir_document', id=facture.id, target_type=target) }}" method="POST">
+                            <button type="submit" class="dropdown-item">
+                                <i class="fas {{ target_icons.get(target, 'fa-file') }} me-2" style="color:var(--primary);"></i> {{ target }}
+                            </button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                    {% if not convert_targets.get(doc_type, []) %}
+                    <li><span class="dropdown-item text-muted small">Aucune conversion disponible</span></li>
+                    {% endif %}
+                </ul>
+            </div>
             <div class="dropdown">
                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" style="border-radius:var(--radius-sm);" data-bs-toggle="dropdown">
                     <i class="fas fa-exchange-alt me-1"></i> Statut
@@ -160,7 +182,7 @@
                     <i class="fas fa-trash"></i>
                 </button>
             </form>
-            <a href="{{ url_for('ventes') }}" class="btn btn-sm btn-outline-secondary" style="border-radius:var(--radius-sm);">
+            <a href="{{ url_for('ventes', type_doc=doc_type) }}" class="btn btn-sm btn-outline-secondary" style="border-radius:var(--radius-sm);">
                 <i class="fas fa-arrow-left"></i>
             </a>
         </div>
@@ -250,6 +272,7 @@
             <div id="addArticleForm" class="add-article-form" style="display:none;">
                 <form action="{{ url_for('add_facture_ligne', id=facture.id) }}" method="POST">
                     <div class="row g-2 align-items-end">
+                        <!-- Produit selector (all types) -->
                         <div class="col-md-3">
                             <label class="form-label">Produit</label>
                             <select name="produit_id" id="produitSelect" class="form-select form-select-sm"
@@ -262,58 +285,61 @@
                                 {% endfor %}
                             </select>
                         </div>
+                        <!-- Ref (all types) -->
                         <div class="col-md-2">
                             <label class="form-label">R&eacute;f</label>
-                            <input type="text" name="reference" id="articleRef" class="form-control form-control-sm" placeholder="R&eacute;f">
+                            <input type="text" name="reference" id="articleRef" class="form-control form-control-sm">
                         </div>
-                        <div class="{% if is_bt %}col-md-5{% else %}col-md-3{% endif %}">
-                            <label class="form-label">D&eacute;signation</label>
-                            <input type="text" name="designation" id="articleDesig" class="form-control form-control-sm" placeholder="Nom du produit / LOT">
+                        <!-- D&eacute;signation (all types) -->
+                        <div class="col-md-{% if is_bt %}2{% else %}3{% endif %}">
+                            <label class="form-label">Description</label>
+                            <input type="text" name="designation" id="articleDesig" class="form-control form-control-sm">
                         </div>
+                        <!-- Lot (all types) -->
                         <div class="col-md-2">
-                            <label class="form-label">{% if is_bt %}Lot{% else %}Lot{% endif %}</label>
+                            <label class="form-label">Lot</label>
                             <select name="lot_id" id="lotSelect" class="form-select form-select-sm">
-                                <option value="">Aucune</option>
+                                <option value="">--</option>
                             </select>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Quantit&eacute;</label>
+                        <!-- Qt&eacute; (all types) -->
+                        <div class="col-md-1">
+                            <label class="form-label">Qt&eacute;</label>
                             <input type="number" name="quantite" id="articleQty" class="form-control form-control-sm"
-                                   value="1" min="0.001" step="0.001" onchange="calcMontant()">
+                                   value="1" step="any" onchange="calcMontant()">
                         </div>
-                        {% if not is_bt %}
-                        <div class="col-md-2">
-                            <label class="form-label">Prix unitaire</label>
-                            <input type="number" name="prix_unitaire" id="articlePrix" class="form-control form-control-sm"
-                                   value="0" step="{% if is_avoir %}-0.01{% else %}0.01{% endif %}" onchange="calcMontant()">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Taxe (%)</label>
-                            <input type="number" name="tva" id="articleTva" class="form-control form-control-sm"
-                                   value="20" step="0.1">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Remise (%)</label>
-                            <input type="number" name="remise" id="articleRemise" class="form-control form-control-sm"
-                                   value="0" step="0.01" onchange="calcMontant()">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Montant HT</label>
-                            <input type="text" id="articleMontant" class="form-control form-control-sm"
-                                   style="background:var(--bg);" readonly placeholder="0.00">
-                        </div>
-                        {% else %}
+
+                        {% if is_bt %}
                         <!-- BT: no prices, hidden defaults -->
                         <input type="hidden" name="prix_unitaire" value="0">
                         <input type="hidden" name="tva" value="0">
                         <input type="hidden" name="remise" value="0">
+                        {% else %}
+                        <!-- Devis/Facture/BL/Avoir: price columns -->
+                        <div class="col-md-2">
+                            <label class="form-label">Unitaire</label>
+                            <input type="number" name="prix_unitaire" id="articlePrix" class="form-control form-control-sm"
+                                   value="0" step="any" onchange="calcMontant()">
+                        </div>
+                        <div class="col-md-1">
+                            <label class="form-label">TVA %</label>
+                            <input type="number" name="tva" id="articleTva" class="form-control form-control-sm"
+                                   value="20" step="0.1">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Total</label>
+                            <input type="text" id="articleMontant" class="form-control form-control-sm"
+                                   style="background:var(--bg);" readonly placeholder="0.00">
+                        </div>
+                        <input type="hidden" name="remise" value="0">
                         {% endif %}
+
                         <div class="col-md-2 d-flex gap-2">
                             <button type="button" class="btn btn-sm btn-outline-secondary flex-fill" style="border-radius:var(--radius-sm);" onclick="resetForm()">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
                             <button type="submit" class="btn btn-sm btn-info text-white flex-fill fw-bold" style="border-radius:var(--radius-sm);">
-                                <i class="fas fa-plus"></i> Ajouter
+                                <i class="fas fa-plus"></i>
                             </button>
                         </div>
                     </div>
@@ -328,15 +354,19 @@
                         <tr>
                             <th style="width:30px;"></th>
                             <th>R&eacute;f</th>
-                            <th>Article / D&eacute;signation</th>
-                            <th>Quantit&eacute;</th>
-                            {% if not is_bt %}
-                            <th>Prix Unitaire</th>
-                            <th>Taxe</th>
-                            <th>Remise</th>
-                            <th>Montant HT</th>
+                            <th>Description</th>
+                            {% if is_bt %}
+                            <th>Lot</th>
+                            <th>Qt&eacute;</th>
+                            <th>Rayonnage</th>
+                            <th>P&eacute;remption</th>
+                            {% else %}
+                            <th>Qt&eacute;</th>
+                            <th>Unitaire</th>
+                            <th>TVA</th>
+                            <th>Total</th>
                             {% endif %}
-                            <th style="width:60px;"></th>
+                            <th style="width:50px;"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -344,18 +374,21 @@
                         <tr>
                             <td style="color:var(--text-tertiary); font-size:0.75rem;">{{ loop.index }}</td>
                             <td style="color:var(--text-tertiary); font-size:0.8rem;">{{ ligne.reference or '' }}</td>
-                            <td style="font-weight:600;">
-                                {{ ligne.designation or ligne.produit_nom or '' }}
-                                {% if ligne.lot_numero %}
-                                    <span style="color:var(--text-tertiary); font-size:0.75rem;"> LOT:{{ ligne.lot_numero }}</span>
+                            <td style="font-weight:600;">{{ ligne.designation or ligne.produit_nom or '' }}</td>
+                            {% if is_bt %}
+                            <td style="font-size:0.82rem;">{{ ligne.lot_numero or '' }}</td>
+                            <td>{{ ligne.quantite }}</td>
+                            <td style="font-size:0.82rem; color:var(--text-secondary);">
+                                {% if ligne.lot_warehouse or ligne.lot_rangee %}
+                                {{ ligne.lot_warehouse or '' }}{% if ligne.lot_rangee %} / {{ ligne.lot_rangee }}{% endif %}
                                 {% endif %}
                             </td>
+                            <td style="font-size:0.82rem; color:var(--text-secondary);">{{ ligne.lot_date_expiration or '' }}</td>
+                            {% else %}
                             <td>{{ ligne.quantite }}</td>
-                            {% if not is_bt %}
-                            <td>{{ "%.2f"|format(ligne.prix_unitaire) }} dh</td>
+                            <td>{{ "%.2f"|format(ligne.prix_unitaire) }}</td>
                             <td>{{ "%.0f"|format(ligne.tva) }}%</td>
-                            <td>{{ "%.0f"|format(ligne.remise) }}</td>
-                            <td style="font-weight:700;">{{ "%.4f"|format(ligne.montant_ht) }}</td>
+                            <td style="font-weight:700;">{{ "%.2f"|format(ligne.montant_ht) }}</td>
                             {% endif %}
                             <td>
                                 <form action="{{ url_for('delete_facture_ligne', fid=facture.id, lid=ligne.id) }}"
@@ -489,6 +522,21 @@
                 </div>
             </div>
 
+            {% endif %}
+
+            {% if linked_docs %}
+            <hr style="border-color:var(--border-light);">
+            <h6 class="heading mb-2" style="color:var(--text-tertiary); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em;">Documents li&eacute;s</h6>
+            {% for doc in linked_docs %}
+            <a href="{{ url_for('edit_facture', id=doc.id) }}" class="d-block mb-1 text-decoration-none"
+               style="background:var(--bg); border-radius:var(--radius-sm); padding:8px 12px; font-size:0.82rem; transition:all 0.2s ease;">
+                <span style="color:var(--text-tertiary); font-size:0.7rem;">{{ doc.type_document }}</span><br>
+                <span style="color:var(--primary); font-weight:700;">{{ doc.numero }}</span>
+                {% if doc.id == facture.parent_id %}
+                <span class="badge bg-secondary" style="font-size:0.6rem; vertical-align:middle; margin-left:4px;">source</span>
+                {% endif %}
+            </a>
+            {% endfor %}
             {% endif %}
 
             <hr style="border-color:var(--border-light);">
