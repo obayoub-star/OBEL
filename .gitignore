@@ -1,0 +1,14 @@
+# Database — elke developer heeft zijn eigen lokale database
+database.db
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# macOS
+.DS_Store
+
+# Flask secret / env
+.env
+instance/
