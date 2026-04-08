@@ -734,6 +734,32 @@ def add_lot(id):
     return redirect(url_for('produit_detail', id=id, tab='lots'))
 
 
+@app.route('/lot/<int:lot_id>/edit', methods=['POST'])
+@login_required
+def edit_lot(lot_id):
+    conn = get_db_connection()
+    lot  = conn.execute('SELECT produit_id FROM lots WHERE id=?', (lot_id,)).fetchone()
+    conn.execute('''
+        UPDATE lots SET lot_numero=?, site=?, date_expiration=?,
+                        warehouse=?, bloc=?, rangee=?, quantite=?
+        WHERE id=?
+    ''', (
+        request.form.get('lot_numero', ''),
+        request.form.get('site', ''),
+        request.form.get('date_expiration', ''),
+        request.form.get('warehouse', ''),
+        request.form.get('bloc', ''),
+        request.form.get('rangee', ''),
+        request.form.get('quantite', 0) or 0,
+        lot_id,
+    ))
+    conn.commit()
+    conn.close()
+    if lot:
+        return redirect(url_for('produit_detail', id=lot['produit_id'], tab='lots'))
+    return redirect(url_for('producten'))
+
+
 @app.route('/lot/<int:lot_id>/delete', methods=['POST'])
 @login_required
 def delete_lot(lot_id):
@@ -1342,9 +1368,22 @@ def update_facture_header(id):
 @app.route('/facture/<int:id>/statut', methods=['POST'])
 @login_required
 def update_facture_statut(id):
-    conn = get_db_connection()
-    conn.execute('UPDATE factures SET statut=? WHERE id=?',
-                 (request.form.get('statut', 'En instance'), id))
+    conn       = get_db_connection()
+    new_statut = request.form.get('statut', 'En instance')
+    old        = conn.execute('SELECT statut FROM factures WHERE id=?', (id,)).fetchone()
+    old_statut = old['statut'] if old else ''
+    conn.execute('UPDATE factures SET statut=? WHERE id=?', (new_statut, id))
+    # Deduct stock when marking as Payé (only once, not if already Payé)
+    if new_statut == 'Payé' and old_statut != 'Payé':
+        lignes = conn.execute(
+            'SELECT lot_id, quantite FROM facture_lignes WHERE facture_id=? AND lot_id IS NOT NULL',
+            (id,)
+        ).fetchall()
+        for ligne in lignes:
+            conn.execute(
+                'UPDATE lots SET quantite = MAX(0, quantite - ?) WHERE id=?',
+                (ligne['quantite'], ligne['lot_id'])
+            )
     conn.commit()
     conn.close()
     return redirect(url_for('edit_facture', id=id))
@@ -1407,24 +1446,103 @@ def delete_facture_ligne(fid, lid):
 @app.route('/api/produit/<int:produit_id>/lots')
 @login_required
 def api_lots_produit(produit_id):
+    client_id = request.args.get('client_id')
     conn    = get_db_connection()
     lots    = conn.execute(
         'SELECT id, lot_numero, quantite, warehouse FROM lots WHERE produit_id=? AND quantite>0',
         (produit_id,)
     ).fetchall()
     produit = conn.execute(
-        'SELECT tva, prix_dernier_achat, prix_tarif_1, prix_tarif_2, prix_tarif_3 FROM produits WHERE id=?',
+        'SELECT nom, reference, tva, prix_tarif_1, prix_tarif_2, prix_tarif_3 FROM produits WHERE id=?',
         (produit_id,)
     ).fetchone()
+    # Determine the right price for this client
+    prix = produit['prix_tarif_1'] if produit else 20
+    if client_id and produit:
+        # Check client-specific price
+        pv = conn.execute(
+            'SELECT prix FROM prix_vente WHERE produit_id=? AND client_id=?',
+            (produit_id, client_id)
+        ).fetchone()
+        if pv:
+            prix = pv['prix']
+        else:
+            # Use client tarification
+            cl = conn.execute('SELECT tarification FROM clients WHERE id=?', (client_id,)).fetchone()
+            if cl:
+                t = cl['tarification'] or 'T1'
+                if t == 'T2':
+                    prix = produit['prix_tarif_2']
+                elif t == 'T3':
+                    prix = produit['prix_tarif_3']
+                else:
+                    prix = produit['prix_tarif_1']
+    # Build designation starting from "USP" if present
+    nom = produit['nom'] if produit else ''
+    usp_idx = nom.upper().find('USP')
+    designation = nom[usp_idx:] if usp_idx >= 0 else nom
     conn.close()
     return jsonify({
-        'lots':       [{'id': l['id'], 'lot_numero': l['lot_numero'],
-                        'quantite': l['quantite'], 'warehouse': l['warehouse']} for l in lots],
-        'prix':       produit['prix_dernier_achat'] if produit else 0,
-        'prix_tarif_1': produit['prix_tarif_1'] if produit else 20,
-        'prix_tarif_2': produit['prix_tarif_2'] if produit else 14.15,
-        'prix_tarif_3': produit['prix_tarif_3'] if produit else 75,
-        'tva':        produit['tva'] if produit else 20,
+        'lots':        [{'id': l['id'], 'lot_numero': l['lot_numero'],
+                         'quantite': l['quantite'], 'warehouse': l['warehouse']} for l in lots],
+        'prix':        prix,
+        'tva':         produit['tva'] if produit else 20,
+        'nom':         nom,
+        'reference':   produit['reference'] if produit else '',
+        'designation': designation,
+    })
+
+
+@app.route('/api/produit/by-reference')
+@login_required
+def api_produit_by_reference():
+    ref       = request.args.get('ref', '').strip()
+    client_id = request.args.get('client_id')
+    if not ref:
+        return jsonify({'found': False})
+    conn    = get_db_connection()
+    produit = conn.execute(
+        'SELECT * FROM produits WHERE reference=? OR code_barres=? LIMIT 1',
+        (ref, ref)
+    ).fetchone()
+    if not produit:
+        conn.close()
+        return jsonify({'found': False})
+    # Price logic
+    prix = produit['prix_tarif_1'] or 20
+    if client_id:
+        pv = conn.execute(
+            'SELECT prix FROM prix_vente WHERE produit_id=? AND client_id=?',
+            (produit['id'], client_id)
+        ).fetchone()
+        if pv:
+            prix = pv['prix']
+        else:
+            cl = conn.execute('SELECT tarification FROM clients WHERE id=?', (client_id,)).fetchone()
+            if cl:
+                t = cl['tarification'] or 'T1'
+                if t == 'T2':
+                    prix = produit['prix_tarif_2'] or 14.15
+                elif t == 'T3':
+                    prix = produit['prix_tarif_3'] or 75
+    nom = produit['nom'] or ''
+    usp_idx = nom.upper().find('USP')
+    designation = nom[usp_idx:] if usp_idx >= 0 else nom
+    lots = conn.execute(
+        'SELECT id, lot_numero, quantite, warehouse FROM lots WHERE produit_id=? AND quantite>0',
+        (produit['id'],)
+    ).fetchall()
+    conn.close()
+    return jsonify({
+        'found':       True,
+        'id':          produit['id'],
+        'nom':         nom,
+        'reference':   produit['reference'] or '',
+        'designation': designation,
+        'prix':        prix,
+        'tva':         produit['tva'] or 20,
+        'lots':        [{'id': l['id'], 'lot_numero': l['lot_numero'],
+                         'quantite': l['quantite'], 'warehouse': l['warehouse']} for l in lots],
     })
 
 

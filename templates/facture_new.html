@@ -39,10 +39,11 @@
                     <!-- Client (all types) -->
                     <div class="col-12">
                         <label class="form-label fw-bold">Client *</label>
-                        <select name="client_id" class="form-select" required>
-                            <option value="">-- S&eacute;lectionner un client --</option>
+                        <input type="text" id="clientSearch" class="form-control mb-1" placeholder="Tapez pour rechercher un client..." autocomplete="off">
+                        <select name="client_id" id="clientSelect" class="form-select" required size="1">
+                            <option value="">-- S&eacute;lectionner --</option>
                             {% for cl in clients %}
-                            <option value="{{ cl.id }}">{{ cl.nom }}</option>
+                            <option value="{{ cl.id }}" data-nom="{{ cl.nom | lower }}">{{ cl.nom }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -96,13 +97,6 @@
                     </div>
                     {% endif %}
 
-                    <!-- Emplacement stock (all except BT) -->
-                    {% if td != 'Bon de travail' %}
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Emplacement du stock</label>
-                        <input type="text" name="emplacement_stock" class="form-control" placeholder="Ex: Babylon">
-                    </div>
-                    {% endif %}
 
                     <!-- Objet (all) -->
                     <div class="col-12">
@@ -121,5 +115,19 @@
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Client search filter
+document.getElementById('clientSearch').addEventListener('input', function() {
+    var q = this.value.toLowerCase();
+    var sel = document.getElementById('clientSelect');
+    Array.from(sel.options).forEach(function(opt) {
+        if (!opt.value) { opt.style.display = ''; return; }
+        opt.style.display = opt.dataset.nom.includes(q) ? '' : 'none';
+    });
+    // Auto-select if only one visible option
+    var visible = Array.from(sel.options).filter(o => o.value && o.style.display !== 'none');
+    if (visible.length === 1) sel.value = visible[0].value;
+});
+</script>
 </body>
 </html>

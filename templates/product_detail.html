@@ -26,9 +26,6 @@
             <span class="badge {% if produit.statut == 'Actif' %}bg-success{% else %}bg-secondary{% endif %} px-3 py-2">
                 {{ produit.statut }}
             </span>
-            <button form="editForm" type="submit" class="btn btn-info text-white btn-sm px-3" style="border-radius:var(--radius-sm);">
-                <i class="fas fa-save me-1"></i> Enregistrer
-            </button>
             {% if tab == 'informations' %}
             <button type="submit" form="editForm" name="_redirect" value="producten"
                     class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-sm);">
@@ -391,7 +388,11 @@
                             <td>{{ lot.bloc or '&mdash;' }}</td>
                             <td>{{ lot.rangee or '&mdash;' }}</td>
                             <td><span class="badge" style="background:var(--primary-light); color:var(--primary);">{{ lot.quantite }}</span></td>
-                            <td>
+                            <td class="d-flex gap-1">
+                                <button type="button" class="btn btn-sm btn-outline-info" style="border-radius:var(--radius-sm);"
+                                        onclick="openEditLot({{ lot.id }}, '{{ lot.lot_numero or '' }}', '{{ lot.site or '' }}', '{{ lot.date_expiration or '' }}', '{{ lot.warehouse or '' }}', '{{ lot.bloc or '' }}', '{{ lot.rangee or '' }}', {{ lot.quantite }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
                                 <form action="{{ url_for('delete_lot', lot_id=lot.id) }}" method="POST" class="d-inline">
                                     <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:var(--radius-sm);" onclick="return confirm('Supprimer ?')"><i class="fas fa-trash"></i></button>
                                 </form>
@@ -702,6 +703,53 @@ function autoSelectTarif(sel) {
     </div>
 </div>
 
+<!-- Modifier Lot -->
+<div class="modal fade" id="editLotModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Modifier Lot</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editLotForm" action="" method="POST">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-4"><label class="form-label fw-bold">N&deg; Lot</label><input type="text" name="lot_numero" id="editLotNumero" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label class="form-label fw-bold">Site</label><input type="text" name="site" id="editLotSite" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label class="form-label fw-bold">Quantit&eacute;</label><input type="number" name="quantite" id="editLotQty" class="form-control form-control-sm" min="0"></div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Date Expiration</label>
+                            <input type="date" name="date_expiration" id="editLotExp" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-12"><hr class="my-1" style="border-color:var(--border-light);"></div>
+                        <div class="col-md-4"><label class="form-label fw-bold">Warehouse</label>
+                            <select name="warehouse" id="editLotWarehouse" class="form-select form-select-sm">
+                                <option value="">&mdash;</option><option value="Babylon">Babylon</option>
+                                <option value="Entrepôt A">Entrep&ocirc;t A</option><option value="Entrepôt B">Entrep&ocirc;t B</option>
+                                <option value="Entrepôt C">Entrep&ocirc;t C</option><option value="Dépôt Principal">D&eacute;p&ocirc;t Principal</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4"><label class="form-label fw-bold">Bloc</label>
+                            <select name="bloc" id="editLotBloc" class="form-select form-select-sm">
+                                <option value="">&mdash;</option>{% for i in range(1,6) %}<option value="Bloc {{ i }}">Bloc {{ i }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4"><label class="form-label fw-bold">Rang&eacute;e</label>
+                            <select name="rangee" id="editLotRangee" class="form-select form-select-sm">
+                                <option value="">&mdash;</option>{% for i in range(1,11) %}<option value="Rangée {{ i }}">Rang&eacute;e {{ i }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-info text-white px-4">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Importer Lots CSV -->
 <div class="modal fade" id="importLotsModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -738,6 +786,23 @@ if (addLotModalEl) {
         var dateProdEl = document.getElementById('lotDateProd');
         if (dateProdEl) dateProdEl.value = today;
     });
+}
+
+// Open edit lot modal and fill fields
+function openEditLot(id, lotNum, site, dateExp, warehouse, bloc, rangee, qty) {
+    document.getElementById('editLotForm').action = '/lot/' + id + '/edit';
+    document.getElementById('editLotNumero').value   = lotNum;
+    document.getElementById('editLotSite').value     = site;
+    document.getElementById('editLotExp').value      = dateExp;
+    document.getElementById('editLotQty').value      = qty;
+    var wSel = document.getElementById('editLotWarehouse');
+    for (var i = 0; i < wSel.options.length; i++) { if (wSel.options[i].value === warehouse) { wSel.selectedIndex = i; break; } }
+    var bSel = document.getElementById('editLotBloc');
+    for (var i = 0; i < bSel.options.length; i++) { if (bSel.options[i].value === bloc) { bSel.selectedIndex = i; break; } }
+    var rSel = document.getElementById('editLotRangee');
+    for (var i = 0; i < rSel.options.length; i++) { if (rSel.options[i].value === rangee) { rSel.selectedIndex = i; break; } }
+    var modal = new bootstrap.Modal(document.getElementById('editLotModal'));
+    modal.show();
 }
 
 // Prix modal tarif selector

@@ -33,7 +33,6 @@
         </div>
         <div class="d-flex gap-2 ms-1 pb-3">
             <button class="btn btn-info text-white btn-sm px-3" style="border-radius:var(--radius-full); font-size:0.76rem;">Tous</button>
-            <button class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-full); font-size:0.76rem; border-color:var(--border);">Service</button>
             <button class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-full); font-size:0.76rem; border-color:var(--border);">Produits</button>
         </div>
     </div>
@@ -63,7 +62,7 @@
                            style="border:none; background:var(--surface); box-shadow:var(--shadow-sm); border-radius:var(--radius-full); font-size:0.88rem;"
                            placeholder="Nom, r&eacute;f&eacute;rence ou marque..."
                            value="{{ search_query or '' }}"
-                           oninput="document.getElementById('searchForm').submit()">
+                           onkeydown="if(event.key==='Enter'){document.getElementById('searchForm').submit();}">
                 </form>
             </div>
 

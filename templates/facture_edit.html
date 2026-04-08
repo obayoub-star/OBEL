@@ -271,24 +271,20 @@
 
             <div id="addArticleForm" class="add-article-form" style="display:none;">
                 <form action="{{ url_for('add_facture_ligne', id=facture.id) }}" method="POST">
+                    <input type="hidden" name="produit_id" id="produitId" value="">
                     <div class="row g-2 align-items-end">
                         <!-- Produit selector (all types) -->
                         <div class="col-md-3">
                             <label class="form-label">Produit</label>
-                            <select name="produit_id" id="produitSelect" class="form-select form-select-sm"
-                                    onchange="loadProduitInfo(this.value)">
-                                <option value="">-- Choisir --</option>
-                                {% for p in produits %}
-                                <option value="{{ p.id }}" data-ref="{{ p.reference }}" data-nom="{{ p.nom }}" data-tva="{{ p.tva }}">
-                                    [{{ p.reference or p.id }}] {{ p.nom[:45] }}{% if p.nom|length > 45 %}...{% endif %}
-                                </option>
-                                {% endfor %}
-                            </select>
+                            <input type="text" id="produitSearch" class="form-control form-control-sm"
+                                   placeholder="Tapez nom ou r&eacute;f&eacute;rence..." autocomplete="off">
+                            <div id="produitSuggestions" style="position:absolute; z-index:999; background:#fff; border:1px solid var(--border); border-radius:var(--radius-sm); max-height:200px; overflow-y:auto; width:260px; display:none; box-shadow:var(--shadow-md);"></div>
                         </div>
                         <!-- Ref (all types) -->
                         <div class="col-md-2">
                             <label class="form-label">R&eacute;f</label>
-                            <input type="text" name="reference" id="articleRef" class="form-control form-control-sm">
+                            <input type="text" name="reference" id="articleRef" class="form-control form-control-sm"
+                                   placeholder="R&eacute;f" onblur="lookupByRef(this.value)">
                         </div>
                         <!-- D&eacute;signation (all types) -->
                         <div class="col-md-{% if is_bt %}2{% else %}3{% endif %}">
@@ -319,7 +315,7 @@
                         <div class="col-md-2">
                             <label class="form-label">Unitaire</label>
                             <input type="number" name="prix_unitaire" id="articlePrix" class="form-control form-control-sm"
-                                   value="0" step="any" onchange="calcMontant()">
+                                   value="0" step="any" readonly style="background:var(--bg); color:var(--text-secondary);" onchange="calcMontant()">
                         </div>
                         <div class="col-md-1">
                             <label class="form-label">TVA %</label>
@@ -623,6 +619,15 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+var CLIENT_ID = '{{ facture.client_id or "" }}';
+
+// All products for autocomplete (name + reference)
+var ALL_PRODUITS = [
+    {% for p in produits %}
+    { id: {{ p.id }}, nom: {{ p.nom | tojson }}, ref: {{ (p.reference or '') | tojson }}, stock: {{ p.stock_total }} }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
 function toggleAddForm() {
     var form    = document.getElementById('addArticleForm');
     var chevron = document.getElementById('addFormChevron');
@@ -631,23 +636,81 @@ function toggleAddForm() {
     chevron.className  = visible ? 'fas fa-chevron-down ms-auto small' : 'fas fa-chevron-up ms-auto small';
 }
 
+// Product search autocomplete
+var searchEl = document.getElementById('produitSearch');
+var suggestEl = document.getElementById('produitSuggestions');
+
+searchEl.addEventListener('input', function() {
+    var q = this.value.toLowerCase().trim();
+    suggestEl.innerHTML = '';
+    if (!q) { suggestEl.style.display = 'none'; return; }
+    var matches = ALL_PRODUITS.filter(function(p) {
+        return p.nom.toLowerCase().includes(q) || p.ref.toLowerCase().includes(q);
+    }).slice(0, 10);
+    if (matches.length === 0) { suggestEl.style.display = 'none'; return; }
+    matches.forEach(function(p) {
+        var div = document.createElement('div');
+        div.style.cssText = 'padding:8px 12px; cursor:pointer; font-size:0.84rem; border-bottom:1px solid var(--border-light);';
+        div.innerHTML = '<strong>' + (p.ref ? p.ref + ' — ' : '') + '</strong>' + p.nom.substring(0, 60);
+        div.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            selectProduit(p.id);
+            searchEl.value = p.nom;
+            suggestEl.style.display = 'none';
+        });
+        suggestEl.appendChild(div);
+    });
+    suggestEl.style.display = 'block';
+});
+
+searchEl.addEventListener('blur', function() {
+    setTimeout(function() { suggestEl.style.display = 'none'; }, 150);
+});
+
+function selectProduit(produitId) {
+    document.getElementById('produitId').value = produitId;
+    loadProduitInfo(produitId);
+}
+
 function loadProduitInfo(produitId) {
     if (!produitId) return;
-    fetch('/api/produit/' + produitId + '/lots')
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('articlePrix').value = data.prix || 0;
-            document.getElementById('articleTva').value  = data.tva  || 20;
-            var sel = document.getElementById('produitSelect');
-            var opt = sel.options[sel.selectedIndex];
-            document.getElementById('articleRef').value   = opt.dataset.ref  || '';
-            document.getElementById('articleDesig').value = opt.dataset.nom  || '';
+    fetch('/api/produit/' + produitId + '/lots?client_id=' + CLIENT_ID)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            document.getElementById('articlePrix').value  = data.prix || 0;
+            document.getElementById('articleTva').value   = data.tva  || 20;
+            document.getElementById('articleRef').value   = data.reference || '';
+            document.getElementById('articleDesig').value = data.designation || data.nom || '';
             var lotSel = document.getElementById('lotSelect');
             lotSel.innerHTML = '<option value="">Aucune</option>';
-            data.lots.forEach(function(l) {
+            (data.lots || []).forEach(function(l) {
                 var o = document.createElement('option');
                 o.value = l.id;
-                o.text  = l.lot_numero + ' (' + l.quantite + ' - ' + (l.warehouse || '?') + ')';
+                o.text  = l.lot_numero + ' (' + l.quantite + ' — ' + (l.warehouse || '?') + ')';
+                lotSel.appendChild(o);
+            });
+            calcMontant();
+        });
+}
+
+function lookupByRef(ref) {
+    ref = ref.trim();
+    if (!ref) return;
+    fetch('/api/produit/by-reference?ref=' + encodeURIComponent(ref) + '&client_id=' + CLIENT_ID)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.found) return;
+            document.getElementById('produitId').value    = data.id;
+            document.getElementById('articlePrix').value  = data.prix || 0;
+            document.getElementById('articleTva').value   = data.tva  || 20;
+            document.getElementById('articleDesig').value = data.designation || data.nom || '';
+            searchEl.value = data.nom || '';
+            var lotSel = document.getElementById('lotSelect');
+            lotSel.innerHTML = '<option value="">Aucune</option>';
+            (data.lots || []).forEach(function(l) {
+                var o = document.createElement('option');
+                o.value = l.id;
+                o.text  = l.lot_numero + ' (' + l.quantite + ' — ' + (l.warehouse || '?') + ')';
                 lotSel.appendChild(o);
             });
             calcMontant();
@@ -655,23 +718,26 @@ function loadProduitInfo(produitId) {
 }
 
 function calcMontant() {
-    var qty    = parseFloat(document.getElementById('articleQty').value)   || 0;
-    var prix   = parseFloat(document.getElementById('articlePrix').value)  || 0;
-    var remise = parseFloat(document.getElementById('articleRemise').value)|| 0;
+    var qty    = parseFloat(document.getElementById('articleQty').value)    || 0;
+    var prix   = parseFloat(document.getElementById('articlePrix').value)   || 0;
+    var remise = parseFloat(document.getElementById('articleRemise') ? document.getElementById('articleRemise').value : 0) || 0;
     var ht     = qty * prix * (1 - remise / 100);
-    document.getElementById('articleMontant').value = ht.toFixed(4);
+    var montEl = document.getElementById('articleMontant');
+    if (montEl) montEl.value = ht.toFixed(4);
 }
 
 function resetForm() {
-    document.getElementById('produitSelect').value  = '';
-    document.getElementById('articleRef').value      = '';
-    document.getElementById('articleDesig').value    = '';
-    document.getElementById('articleQty').value      = 1;
-    document.getElementById('articlePrix').value     = 0;
-    document.getElementById('articleTva').value      = 20;
-    document.getElementById('articleRemise').value   = 0;
-    document.getElementById('articleMontant').value  = '0.0000';
-    document.getElementById('lotSelect').innerHTML   = '<option value="">Aucune</option>';
+    document.getElementById('produitId').value     = '';
+    document.getElementById('produitSearch').value = '';
+    document.getElementById('articleRef').value    = '';
+    document.getElementById('articleDesig').value  = '';
+    document.getElementById('articleQty').value    = 1;
+    document.getElementById('articlePrix').value   = 0;
+    if (document.getElementById('articleTva'))    document.getElementById('articleTva').value    = 20;
+    if (document.getElementById('articleRemise')) document.getElementById('articleRemise').value = 0;
+    if (document.getElementById('articleMontant')) document.getElementById('articleMontant').value = '0.0000';
+    document.getElementById('lotSelect').innerHTML = '<option value="">Aucune</option>';
+    suggestEl.style.display = 'none';
 }
 
 function saveAdjust() {
