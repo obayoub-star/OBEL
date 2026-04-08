@@ -145,9 +145,29 @@
             </a>
         </div>
 
+        <!-- Statut filter buttons -->
+        <div class="d-flex gap-2 mb-3 flex-wrap animate-in">
+            <a href="{{ url_for('ventes', type_doc=td, search=search_query) }}"
+               class="btn btn-sm {% if not statut_filtre %}btn-info text-white{% else %}btn-outline-secondary{% endif %}"
+               style="border-radius:var(--radius-full); font-size:0.78rem;">Tous</a>
+            <a href="{{ url_for('ventes', type_doc=td, statut='Impayé', search=search_query) }}"
+               class="btn btn-sm {% if statut_filtre == 'Impayé' %}btn-danger text-white{% else %}btn-outline-danger{% endif %}"
+               style="border-radius:var(--radius-full); font-size:0.78rem;">Impayé</a>
+            <a href="{{ url_for('ventes', type_doc=td, statut='Partiellement payé', search=search_query) }}"
+               class="btn btn-sm {% if statut_filtre == 'Partiellement payé' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %}"
+               style="border-radius:var(--radius-full); font-size:0.78rem;">Partiellement payé</a>
+            <a href="{{ url_for('ventes', type_doc=td, statut='Payé', search=search_query) }}"
+               class="btn btn-sm {% if statut_filtre == 'Payé' %}btn-success text-white{% else %}btn-outline-success{% endif %}"
+               style="border-radius:var(--radius-full); font-size:0.78rem;">Payé</a>
+            <a href="{{ url_for('ventes', type_doc=td, statut='En instance', search=search_query) }}"
+               class="btn btn-sm {% if statut_filtre == 'En instance' %}btn-secondary text-white{% else %}btn-outline-secondary{% endif %}"
+               style="border-radius:var(--radius-full); font-size:0.78rem;">En instance</a>
+        </div>
+
         <!-- Search + actions -->
         <div class="d-flex justify-content-between align-items-center mb-3 animate-in animate-in-delay-3">
             <form action="{{ url_for('ventes') }}" method="GET" class="d-flex gap-2">
+                <input type="hidden" name="type_doc" value="{{ td }}">
                 <div class="position-relative">
                     <span class="position-absolute top-50 start-0 translate-middle-y ms-3" style="color:var(--text-tertiary);">
                         <i class="fas fa-search"></i>
@@ -162,7 +182,7 @@
                 </div>
                 <button type="submit" class="btn btn-outline-secondary btn-sm" style="border-radius:var(--radius-full);">Filtrer</button>
                 {% if statut_filtre or search_query %}
-                <a href="{{ url_for('ventes') }}" class="btn btn-sm btn-outline-danger" style="border-radius:var(--radius-full);">
+                <a href="{{ url_for('ventes', type_doc=td) }}" class="btn btn-sm btn-outline-danger" style="border-radius:var(--radius-full);">
                     <i class="fas fa-times"></i> R&eacute;initialiser
                 </a>
                 {% endif %}
