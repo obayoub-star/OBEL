@@ -335,10 +335,16 @@ def api_evolution_ventes():
 @login_required
 def overview():
     conn   = get_db_connection()
-    filtre = request.args.get('type', 'all')  # all | vendu | stock | mouvement
+    filtre        = request.args.get('type', 'all')
+    statut_filtre = request.args.get('statut', '')
 
     # Verkochte producten (via factuurlijnen)
-    ventes_rows = conn.execute('''
+    ventes_params = []
+    ventes_where  = ''
+    if statut_filtre:
+        ventes_where = 'WHERE f.statut = ?'
+        ventes_params.append(statut_filtre)
+    ventes_rows = conn.execute(f'''
         SELECT fl.designation, fl.reference, fl.quantite, fl.prix_unitaire,
                fl.montant_ht, f.date_facture, f.numero AS facture_num,
                cl.nom AS client_nom, f.statut,
@@ -347,9 +353,10 @@ def overview():
         JOIN factures f ON fl.facture_id = f.id
         LEFT JOIN clients cl ON f.client_id = cl.id
         LEFT JOIN produits p ON fl.produit_id = p.id
+        {ventes_where}
         ORDER BY f.date_facture DESC
         LIMIT 200
-    ''').fetchall()
+    ''', ventes_params).fetchall()
 
     # Stock huidige stand per warehouse
     stock_rows = conn.execute('''
@@ -376,7 +383,8 @@ def overview():
                            ventes_rows=ventes_rows,
                            stock_rows=stock_rows,
                            mvt_rows=mvt_rows,
-                           filtre=filtre)
+                           filtre=filtre,
+                           statut_filtre=statut_filtre)
 
 
 # ─── PRODUCTEN LIJST ──────────────────────────────────────────────────────────
@@ -1446,6 +1454,30 @@ def add_facture_ligne(id):
     ''', (id, produit_id, lot_id, reference, designation,
           quantite, prix, tva, remise, montant_ht))
     recalculate_facture(conn, id)
+    # Live stock deduction when adding a line to a facture
+    if lot_id:
+        conn.execute(
+            'UPDATE lots SET quantite = MAX(0, quantite - ?) WHERE id=?',
+            (quantite, lot_id)
+        )
+    elif produit_id:
+        remaining = quantite
+        lots_fifo = conn.execute(
+            '''SELECT id, quantite FROM lots
+               WHERE produit_id=? AND quantite>0
+               ORDER BY CASE WHEN date_expiration IS NULL OR date_expiration='' THEN 1 ELSE 0 END,
+                        date_expiration ASC, id ASC''',
+            (produit_id,)
+        ).fetchall()
+        for lot in lots_fifo:
+            if remaining <= 0:
+                break
+            deduct = min(float(lot['quantite']), remaining)
+            conn.execute(
+                'UPDATE lots SET quantite = MAX(0, quantite - ?) WHERE id=?',
+                (deduct, lot['id'])
+            )
+            remaining -= deduct
     conn.commit()
     conn.close()
     return redirect(url_for('edit_facture', id=id))
@@ -1455,8 +1487,43 @@ def add_facture_ligne(id):
 @app.route('/facture/<int:fid>/ligne/<int:lid>/delete', methods=['POST'])
 @login_required
 def delete_facture_ligne(fid, lid):
-    conn = get_db_connection()
+    conn  = get_db_connection()
+    ligne = conn.execute('SELECT lot_id, produit_id, quantite FROM facture_lignes WHERE id=? AND facture_id=?', (lid, fid)).fetchone()
     conn.execute('DELETE FROM facture_lignes WHERE id=? AND facture_id=?', (lid, fid))
+    recalculate_facture(conn, fid)
+    # Restore stock when a line is deleted
+    if ligne:
+        if ligne['lot_id']:
+            conn.execute('UPDATE lots SET quantite = quantite + ? WHERE id=?', (ligne['quantite'], ligne['lot_id']))
+        elif ligne['produit_id']:
+            # Put back to first lot of product (FIFO reverse)
+            first_lot = conn.execute(
+                '''SELECT id FROM lots WHERE produit_id=?
+                   ORDER BY CASE WHEN date_expiration IS NULL OR date_expiration='' THEN 1 ELSE 0 END,
+                            date_expiration ASC, id ASC LIMIT 1''',
+                (ligne['produit_id'],)
+            ).fetchone()
+            if first_lot:
+                conn.execute('UPDATE lots SET quantite = quantite + ? WHERE id=?', (ligne['quantite'], first_lot['id']))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('edit_facture', id=fid))
+
+
+# ─── VENTES : MODIFIER LIGNE ──────────────────────────────────────────────────
+@app.route('/facture/<int:fid>/ligne/<int:lid>/edit', methods=['POST'])
+@login_required
+def edit_facture_ligne(fid, lid):
+    conn       = get_db_connection()
+    quantite   = float(request.form.get('quantite', 1) or 1)
+    prix       = float(request.form.get('prix_unitaire', 0) or 0)
+    tva        = float(request.form.get('tva', 20) or 20)
+    designation = request.form.get('designation', '').strip()
+    montant_ht = round(quantite * prix * (1 - 0 / 100), 4)
+    conn.execute('''
+        UPDATE facture_lignes SET quantite=?, prix_unitaire=?, tva=?, designation=?, montant_ht=?
+        WHERE id=? AND facture_id=?
+    ''', (quantite, prix, tva, designation, montant_ht, lid, fid))
     recalculate_facture(conn, fid)
     conn.commit()
     conn.close()

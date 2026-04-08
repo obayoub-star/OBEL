@@ -20,6 +20,22 @@
 
     <div class="content-padding">
 
+        <!-- Statut filter (voor ventes tab) -->
+        <div class="d-flex gap-2 mb-3 animate-in">
+            <a href="{{ url_for('overview', type=filtre) }}"
+               class="btn btn-sm {% if not statut_filtre %}btn-info text-white{% else %}btn-outline-secondary{% endif %}"
+               style="border-radius:var(--radius-full); font-size:0.8rem;">Tous</a>
+            <a href="{{ url_for('overview', type=filtre, statut='Payé') }}"
+               class="btn btn-sm {% if statut_filtre == 'Payé' %}btn-success text-white{% else %}btn-outline-secondary{% endif %}"
+               style="border-radius:var(--radius-full); font-size:0.8rem;"><i class="fas fa-check me-1"></i>Payé</a>
+            <a href="{{ url_for('overview', type=filtre, statut='Impayé') }}"
+               class="btn btn-sm {% if statut_filtre == 'Impayé' %}btn-danger text-white{% else %}btn-outline-secondary{% endif %}"
+               style="border-radius:var(--radius-full); font-size:0.8rem;"><i class="fas fa-times me-1"></i>Impayé</a>
+            <a href="{{ url_for('overview', type=filtre, statut='En instance') }}"
+               class="btn btn-sm {% if statut_filtre == 'En instance' %}btn-warning text-dark{% else %}btn-outline-secondary{% endif %}"
+               style="border-radius:var(--radius-full); font-size:0.8rem;"><i class="fas fa-clock me-1"></i>En instance</a>
+        </div>
+
         <!-- Tab buttons -->
         <div class="d-flex gap-2 mb-4 animate-in">
             <a href="{{ url_for('overview', type='ventes') }}"

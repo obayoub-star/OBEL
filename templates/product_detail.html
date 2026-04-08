@@ -217,48 +217,6 @@
                     Modifiez les tarifs ci-dessus et cliquez sur <strong>Enregistrer</strong>.
                 </p>
 
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="heading" style="font-size:0.75rem; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.06em;">Prix par client</span>
-                    <button class="btn btn-sm btn-outline-info" style="border-radius:var(--radius-sm);" data-bs-toggle="modal" data-bs-target="#addPrixModal">
-                        <i class="fas fa-plus me-1"></i> Assigner
-                    </button>
-                </div>
-
-                {% if prix_vente_list %}
-                <div style="border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border-light);">
-                <table class="table table-sm tab-table mb-0">
-                    <thead><tr><th>Client / H&ocirc;pital</th><th>Tarif appliqu&eacute;</th><th>Prix (dh HT)</th><th style="width:80px;"></th></tr></thead>
-                    <tbody>
-                        {% for pv in prix_vente_list %}
-                        <tr>
-                            <td><i class="fas fa-hospital-alt me-1" style="color:var(--primary);"></i> {{ pv.client_nom }}</td>
-                            <td>
-                                {% if pv.prix == produit.prix_tarif_1 %}<span class="badge" style="background:var(--primary); color:white;">Tarif 1</span>
-                                {% elif pv.prix == produit.prix_tarif_2 %}<span class="badge bg-success">Tarif 2</span>
-                                {% elif pv.prix == produit.prix_tarif_3 %}<span class="badge bg-warning text-dark">Tarif 3</span>
-                                {% else %}<span class="badge bg-secondary">Personnalis&eacute;</span>{% endif %}
-                            </td>
-                            <td>
-                                <form action="{{ url_for('update_prix_vente', pv_id=pv.id) }}" method="POST" class="d-inline-flex align-items-center gap-2">
-                                    <input type="number" name="prix" class="form-control form-control-sm" style="width:90px;" step="0.01" value="{{ pv.prix }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-success py-0" style="border-radius:var(--radius-sm);"><i class="fas fa-check"></i></button>
-                                </form>
-                            </td>
-                            <td>
-                                <form action="{{ url_for('delete_prix_vente', pv_id=pv.id) }}" method="POST" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0" style="border-radius:var(--radius-sm);" onclick="return confirm('Supprimer ?')"><i class="fas fa-trash"></i></button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                </div>
-                {% else %}
-                <div style="color:var(--text-tertiary); font-size:0.84rem; padding:16px; background:var(--bg); border-radius:var(--radius-md);">
-                    <i class="fas fa-info-circle me-1"></i> Aucun client assign&eacute;.
-                </div>
-                {% endif %}
             </div>
 
             {# ═══ TAB 2: PIECES-JOINTES ═══ #}
