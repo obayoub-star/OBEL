@@ -399,8 +399,12 @@
                             <td style="font-weight:700;">{{ "%.2f"|format(ligne.montant_ht) }}</td>
                             {% endif %}
                             <td class="d-flex gap-1">
-                                <button type="button" class="btn btn-sm btn-link p-0" style="color:var(--primary);"
-                                        onclick="openEditLigne({{ ligne.id }}, {{ ligne.quantite }}, {{ ligne.prix_unitaire }}, {{ ligne.tva }}, {{ ligne.designation | tojson }})">
+                                <button type="button" class="btn btn-sm btn-link p-0 edit-ligne-btn" style="color:var(--primary);"
+                                        data-lid="{{ ligne.id }}"
+                                        data-qty="{{ ligne.quantite }}"
+                                        data-prix="{{ ligne.prix_unitaire }}"
+                                        data-tva="{{ ligne.tva }}"
+                                        data-desig="{{ ligne.designation | e }}">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <form action="{{ url_for('delete_facture_ligne', fid=facture.id, lid=ligne.id) }}"
@@ -693,7 +697,7 @@ function toggleAddForm() {
 var searchEl  = document.getElementById('produitSearch');
 var suggestEl = document.getElementById('produitSuggestions');
 
-searchEl.addEventListener('input', function() {
+if (searchEl) searchEl.addEventListener('input', function() {
     var q = this.value.toLowerCase().trim();
     suggestEl.innerHTML = '';
     if (!q) { suggestEl.style.display = 'none'; return; }
@@ -716,7 +720,7 @@ searchEl.addEventListener('input', function() {
     suggestEl.style.display = 'block';
 });
 
-searchEl.addEventListener('blur', function() {
+if (searchEl) searchEl.addEventListener('blur', function() {
     setTimeout(function() { suggestEl.style.display = 'none'; }, 200);
 });
 
@@ -789,14 +793,21 @@ function resetForm() {
     suggestEl.style.display = 'none';
 }
 
-function openEditLigne(lid, qty, prix, tva, desig) {
-    document.getElementById('editLigneForm').action = '/facture/{{ facture.id }}/ligne/' + lid + '/edit';
-    document.getElementById('editLigneQty').value   = qty;
-    document.getElementById('editLignePrix').value  = prix;
-    document.getElementById('editLigneTva').value   = tva;
-    document.getElementById('editLigneDesig').value = desig || '';
-    new bootstrap.Modal(document.getElementById('editLigneModal')).show();
-}
+document.querySelectorAll('.edit-ligne-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var lid   = this.dataset.lid;
+        var qty   = this.dataset.qty;
+        var prix  = this.dataset.prix;
+        var tva   = this.dataset.tva;
+        var desig = this.dataset.desig || '';
+        document.getElementById('editLigneForm').action = '/facture/{{ facture.id }}/ligne/' + lid + '/edit';
+        document.getElementById('editLigneQty').value   = qty;
+        document.getElementById('editLignePrix').value  = prix;
+        document.getElementById('editLigneTva').value   = tva;
+        document.getElementById('editLigneDesig').value = desig;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('editLigneModal')).show();
+    });
+});
 
 function saveAdjust() {
     var remise = document.getElementById('remiseInput').value;
