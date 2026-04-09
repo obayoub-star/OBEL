@@ -75,22 +75,22 @@
                     {% for row in stock_rows %}
                     <tr>
                         <td class="ps-4 fw-semibold">{{ row.nom }}</td>
-                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.reference or '&mdash;' }}</td>
+                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.reference or '' }}</td>
                         <td>
                             {% if row.marque %}
                             <span class="badge" style="background:var(--bg); color:var(--text); border:1px solid var(--border);">{{ row.marque }}</span>
-                            {% else %}&mdash;{% endif %}
+                            {% endif %}
                         </td>
-                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.lot_numero or '&mdash;' }}</td>
+                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.lot_numero or '' }}</td>
                         <td>
                             {% if row.warehouse %}
                             <i class="fas fa-warehouse me-1" style="color:var(--primary); font-size:0.75rem;"></i>{{ row.warehouse }}
-                            {% else %}&mdash;{% endif %}
+                            {% endif %}
                         </td>
-                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.bloc or '&mdash;' }}</td>
-                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.rangee or '&mdash;' }}</td>
+                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.bloc or '' }}</td>
+                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.rangee or '' }}</td>
                         <td><span class="badge" style="background:var(--primary-light); color:var(--primary);">{{ row.quantite }}</span></td>
-                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.date_expiration or '&mdash;' }}</td>
+                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.date_expiration or '' }}</td>
                     </tr>
                     {% else %}
                     <tr><td colspan="9" class="empty-state"><i class="fas fa-box-open"></i>Aucun stock enregistr&eacute;.</td></tr>
@@ -118,10 +118,10 @@
                 <tbody>
                     {% for row in mvt_rows %}
                     <tr>
-                        <td class="ps-4" style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.date_mvt or '&mdash;' }}</td>
+                        <td class="ps-4" style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.date_mvt or '' }}</td>
                         <td class="fw-semibold">{{ row.produit_nom }}</td>
-                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.produit_ref or '&mdash;' }}</td>
-                        <td>{{ row.marque or '&mdash;' }}</td>
+                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.produit_ref or '' }}</td>
+                        <td>{{ row.marque or '' }}</td>
                         <td>
                             {% if row.type_mvt == 'Entr\u00e9e' %}
                                 <span class="badge bg-success"><i class="fas fa-arrow-down me-1"></i>Entr&eacute;e</span>
@@ -132,8 +132,8 @@
                             {% endif %}
                         </td>
                         <td><strong>{{ row.quantite }}</strong></td>
-                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.reference or '&mdash;' }}</td>
-                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.note or '&mdash;' }}</td>
+                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.reference or '' }}</td>
+                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.note or '' }}</td>
                     </tr>
                     {% else %}
                     <tr><td colspan="8" class="empty-state"><i class="fas fa-exchange-alt"></i>Aucun mouvement enregistr&eacute;.</td></tr>
@@ -163,12 +163,12 @@
                 <tbody>
                     {% for row in ventes_rows %}
                     <tr>
-                        <td class="ps-4" style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.date_facture or '&mdash;' }}</td>
-                        <td class="fw-bold" style="color:var(--primary);">{{ row.facture_num or '&mdash;' }}</td>
-                        <td class="fw-semibold">{{ row.client_nom or '&mdash;' }}</td>
-                        <td>{{ row.designation or '&mdash;' }}</td>
-                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.reference or '&mdash;' }}</td>
-                        <td>{{ row.marque or '&mdash;' }}</td>
+                        <td class="ps-4" style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.date_facture or '' }}</td>
+                        <td class="fw-bold" style="color:var(--primary);">{{ row.facture_num or '' }}</td>
+                        <td class="fw-semibold">{{ row.client_nom or '' }}</td>
+                        <td>{{ row.designation or '' }}</td>
+                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ row.reference or '' }}</td>
+                        <td>{{ row.marque or '' }}</td>
                         <td><span class="badge" style="background:var(--bg); color:var(--text); border:1px solid var(--border);">{{ row.quantite }}</span></td>
                         <td>{{ "%.2f"|format(row.prix_unitaire or 0) }} dh</td>
                         <td class="fw-bold">{{ "%.2f"|format(row.montant_ht or 0) }} dh</td>

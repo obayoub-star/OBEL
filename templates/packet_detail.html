@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedicaTronic - {% if packet %}{{ packet.nom }}{% else %}Nouveau Packet{% endif %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .tarif-box {
+            background: var(--surface);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            text-align: center;
+        }
+        .tarif-box .tarif-label { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-secondary); }
+        .tarif-box .tarif-value { font-size:1.4rem; font-weight:800; font-family:'Outfit',sans-serif; }
+    </style>
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+    <div class="detail-header d-flex justify-content-between align-items-center">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0 small">
+                <li class="breadcrumb-item"><a href="{{ url_for('producten') }}">Produits</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('packets_list') }}">Packets</a></li>
+                <li class="breadcrumb-item active fw-bold">{% if packet %}{{ packet.nom }}{% else %}Nouveau{% endif %}</li>
+            </ol>
+        </nav>
+        <div class="d-flex gap-2">
+            {% if packet %}
+            <form action="{{ url_for('delete_packet', id=packet.id) }}" method="POST" class="d-inline">
+                <button type="submit" class="btn btn-outline-danger btn-sm" style="border-radius:var(--radius-sm);"
+                        onclick="return confirm('Supprimer ce packet ?')">
+                    <i class="fas fa-trash me-1"></i> Supprimer
+                </button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('packets_list') }}" class="btn btn-outline-secondary btn-sm" style="border-radius:var(--radius-sm);">
+                <i class="fas fa-arrow-left me-1"></i> Retour
+            </a>
+        </div>
+    </div>
+
+    <div class="content-padding">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} alert-dismissible fade show mb-3" role="alert">
+            {{ msg }} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endwith %}
+
+        <!-- Packet form -->
+        <div class="field-card animate-in mb-4">
+            <h6 class="heading mb-3" style="font-size:0.88rem;">
+                <i class="fas fa-box me-2" style="color:var(--primary);"></i> Informations du packet
+            </h6>
+            <form action="{% if packet %}{{ url_for('edit_packet', id=packet.id) }}{% else %}{{ url_for('new_packet') }}{% endif %}" method="POST">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="field-label">Nom du packet *</label>
+                        <input type="text" name="nom" class="form-control form-control-sm" required
+                               value="{{ packet.nom if packet else '' }}" placeholder="Ex: Kit Suture Standard">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label">Description</label>
+                        <input type="text" name="description" class="form-control form-control-sm"
+                               value="{{ packet.description if packet else '' }}" placeholder="Description optionnelle">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-info text-white btn-sm w-100 fw-bold" style="border-radius:var(--radius-sm);">
+                            <i class="fas fa-save me-1"></i> {% if packet %}Enregistrer{% else %}Créer{% endif %}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        {% if packet %}
+
+        <!-- Tarif summary -->
+        <div class="row g-3 mb-4 animate-in animate-in-delay-1">
+            <div class="col-md-4">
+                <div class="tarif-box" style="border-color:rgba(12,123,147,0.3); background:var(--info-light);">
+                    <div class="tarif-label" style="color:var(--primary);">Tarif 1 <small>(Somme T1)</small></div>
+                    <div class="tarif-value" style="color:var(--primary);" id="t1Display">{{ "%.2f"|format(t1 or 0) }} dh</div>
+                    <div style="font-size:0.72rem; color:var(--text-tertiary);">Standard</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="tarif-box" style="border-color:rgba(16,185,129,0.3); background:var(--success-light);">
+                    <div class="tarif-label" style="color:var(--success);">Tarif 2 <small>(T1 + 25%)</small></div>
+                    <div class="tarif-value" style="color:var(--success);" id="t2Display">{{ "%.2f"|format(t2 or 0) }} dh</div>
+                    <div style="font-size:0.72rem; color:var(--text-tertiary);">Préférentiel</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="tarif-box" style="border-color:rgba(245,158,11,0.3); background:var(--warning-light);">
+                    <div class="tarif-label" style="color:var(--warning);">Tarif 3 <small>(T2 + 25%)</small></div>
+                    <div class="tarif-value" style="color:var(--warning);" id="t3Display">{{ "%.2f"|format(t3 or 0) }} dh</div>
+                    <div style="font-size:0.72rem; color:var(--text-tertiary);">Premium</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add product form -->
+        <div class="field-card animate-in animate-in-delay-2 mb-4">
+            <h6 class="heading mb-3" style="font-size:0.88rem;">
+                <i class="fas fa-plus-circle me-2" style="color:var(--primary);"></i> Ajouter un produit
+            </h6>
+            <form action="{{ url_for('add_packet_item', id=packet.id) }}" method="POST">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-6" style="position:relative;">
+                        <label class="field-label">Produit</label>
+                        <input type="hidden" name="produit_id" id="packetProduitId">
+                        <input type="text" id="packetSearch" class="form-control form-control-sm" placeholder="Rechercher un produit..." autocomplete="off">
+                        <div id="packetSuggestions"
+                             style="position:absolute; top:100%; left:0; right:0; z-index:1000;
+                                    background:#fff; border:1px solid var(--border);
+                                    border-radius:0 0 var(--radius-sm) var(--radius-sm);
+                                    max-height:220px; overflow-y:auto; display:none;
+                                    box-shadow:var(--shadow-md);"></div>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="field-label">Quantité</label>
+                        <input type="number" name="quantite" class="form-control form-control-sm" value="1" min="0.001" step="any">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-info text-white btn-sm fw-bold w-100" style="border-radius:var(--radius-sm);">
+                            <i class="fas fa-plus me-1"></i> Ajouter
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Items table -->
+        <div class="table-container animate-in animate-in-delay-3">
+            <table class="table align-middle mb-0 table-hover">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Produit</th>
+                        <th>Référence</th>
+                        <th>Marque</th>
+                        <th>Qté</th>
+                        <th>Prix T1 unit.</th>
+                        <th>Sous-total T1</th>
+                        <th class="text-end pe-4">Options</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td class="ps-4 fw-bold" style="font-size:0.88rem;">{{ item.produit_nom }}</td>
+                        <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ item.produit_ref or '' }}</td>
+                        <td style="font-size:0.82rem;">{{ item.marque or '' }}</td>
+                        <td>{{ item.quantite }}</td>
+                        <td style="font-size:0.84rem;">{{ "%.2f"|format(item.prix_tarif_1 or 0) }} dh</td>
+                        <td style="font-weight:700;">{{ "%.2f"|format((item.prix_tarif_1 or 0) * item.quantite) }} dh</td>
+                        <td class="text-end pe-4">
+                            <form action="{{ url_for('delete_packet_item', pid=packet.id, iid=item.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:var(--radius-sm);"
+                                        onclick="return confirm('Retirer ce produit ?')">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <i class="fas fa-box-open"></i> Aucun produit. Ajoutez des produits ci-dessus.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% endif %}
+    </div>
+</div>
+
+<!-- Product data for autocomplete -->
+<script>
+var allProduits = {{ produits | tojson }};
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Autocomplete for packet product search
+var searchInput = document.getElementById('packetSearch');
+var suggestions = document.getElementById('packetSuggestions');
+var produitIdInput = document.getElementById('packetProduitId');
+
+if (searchInput) {
+    searchInput.addEventListener('input', function() {
+        var q = this.value.toLowerCase().trim();
+        suggestions.innerHTML = '';
+        if (!q) { suggestions.style.display = 'none'; return; }
+        var matches = allProduits.filter(function(p) {
+            return (p.nom && p.nom.toLowerCase().includes(q)) ||
+                   (p.reference && p.reference.toLowerCase().includes(q)) ||
+                   (p.marque && p.marque.toLowerCase().includes(q));
+        }).slice(0, 15);
+        if (!matches.length) { suggestions.style.display = 'none'; return; }
+        matches.forEach(function(p) {
+            var div = document.createElement('div');
+            div.style.cssText = 'padding:8px 12px; cursor:pointer; font-size:0.84rem; border-bottom:1px solid var(--border-light);';
+            div.innerHTML = '<strong>' + (p.nom || '') + '</strong>'
+                + (p.reference ? ' <span style="color:var(--text-tertiary); font-size:0.78rem;">' + p.reference + '</span>' : '')
+                + (p.marque ? ' &bull; <span style="color:var(--text-secondary);">' + p.marque + '</span>' : '')
+                + '<br><small style="color:var(--primary);">T1: ' + (p.prix_tarif_1 || 0).toFixed(2) + ' dh</small>';
+            div.addEventListener('mousedown', function() {
+                searchInput.value = p.nom || '';
+                produitIdInput.value = p.id;
+                suggestions.style.display = 'none';
+            });
+            suggestions.appendChild(div);
+        });
+        suggestions.style.display = 'block';
+    });
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target)) suggestions.style.display = 'none';
+    });
+}
+</script>
+</body>
+</html>

@@ -3,6 +3,7 @@ import csv
 import io
 import datetime
 import functools
+import secrets
 from flask import (Flask, render_template, request, redirect,
                    url_for, flash, session, jsonify)
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -59,16 +60,57 @@ def migrate_db():
         ('factures', 'date_peremption_souhaitee', 'TEXT'),
         ('factures', 'date_livraison_souhaitee',  'TEXT'),
         ('factures', 'parent_id',           'INTEGER'),
+        ('produits', 'etage',               'TEXT'),
+        ('clients',  'portal_token',        'TEXT'),
     ]
+    # Create packets tables if they don't exist
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS packets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reference TEXT,
+            nom TEXT NOT NULL,
+            description TEXT,
+            date_creation TEXT DEFAULT CURRENT_DATE
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS packet_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            packet_id INTEGER NOT NULL REFERENCES packets(id) ON DELETE CASCADE,
+            produit_id INTEGER NOT NULL REFERENCES produits(id) ON DELETE CASCADE,
+            quantite REAL DEFAULT 1
+        )
+    ''')
+    conn.commit()
     for table, col, col_type in migrations:
         try:
             conn.execute(f'ALTER TABLE {table} ADD COLUMN {col} {col_type}')
             conn.commit()
         except sqlite3.OperationalError:
             pass  # column already exists
+    # packets.reference migration
+    try:
+        conn.execute('ALTER TABLE packets ADD COLUMN reference TEXT')
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
     conn.close()
 
 migrate_db()
+
+
+def _generate_packet_reference(conn):
+    row = conn.execute(
+        "SELECT reference FROM packets WHERE reference IS NOT NULL ORDER BY reference DESC LIMIT 1"
+    ).fetchone()
+    if row and row['reference'] and row['reference'].startswith('PKT-'):
+        try:
+            num = int(row['reference'][4:]) + 1
+        except ValueError:
+            num = conn.execute('SELECT COUNT(*) AS n FROM packets').fetchone()['n'] + 1
+    else:
+        num = conn.execute('SELECT COUNT(*) AS n FROM packets').fetchone()['n'] + 1
+    return f"PKT-{num:04d}"
 
 
 def get_db_connection():
@@ -420,12 +462,31 @@ def producten():
         base_query += ' ORDER BY p.marque ASC, p.nom ASC'
 
     items = conn.execute(base_query, params).fetchall()
+
+    # Also fetch packets for combined display
+    packet_search = ''
+    packet_params = []
+    if search:
+        packet_search = ' WHERE (pk.nom LIKE ? OR pk.reference LIKE ?)'
+        packet_params = [f'%{search}%', f'%{search}%']
+    packets_raw = conn.execute(f'''
+        SELECT pk.id, pk.nom, pk.reference, pk.description,
+               COUNT(pi.id) AS nb_items,
+               COALESCE(SUM(p.prix_tarif_1 * pi.quantite), 0) AS t1
+        FROM packets pk
+        LEFT JOIN packet_items pi ON pi.packet_id = pk.id
+        LEFT JOIN produits p ON pi.produit_id = p.id
+        {packet_search}
+        GROUP BY pk.id
+        ORDER BY pk.nom
+    ''', packet_params).fetchall()
+
     conn.close()
 
     sort_urls  = {col: build_sort_url(sorts_str, col) for col in VALID_SORT_COLS}
     sort_icons = {col: get_sort_icon(sorts, col)      for col in VALID_SORT_COLS}
     return render_template('producten.html',
-                           items=items, search_query=search,
+                           items=items, packets=packets_raw, search_query=search,
                            sorts_str=sorts_str,
                            sort_urls=sort_urls, sort_icons=sort_icons)
 
@@ -450,9 +511,9 @@ def add():
         INSERT INTO produits (nom, marque, reference, code_barres, description,
                               stock_min_securite, statut, tva, no_fiche, tag,
                               categorie_id, type_element_id,
-                              emplacement, bloc, rangee,
+                              emplacement, bloc, rangee, etage,
                               prix_tarif_1, prix_tarif_2, prix_tarif_3)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ''', (
         request.form.get('nom', ''),
         request.form.get('marque', ''),
@@ -469,6 +530,7 @@ def add():
         request.form.get('emplacement', ''),
         request.form.get('bloc', ''),
         request.form.get('rangee', ''),
+        request.form.get('etage', ''),
         request.form.get('prix_tarif_1') or 20,
         request.form.get('prix_tarif_2') or 14.15,
         request.form.get('prix_tarif_3') or 75,
@@ -632,7 +694,7 @@ def edit_produit(id):
             nom=?, reference=?, code_barres=?, description=?,
             stock_min_securite=?,
             type_element_id=?, tag=?, categorie_id=?,
-            marque=?, emplacement=?, bloc=?, rangee=?,
+            marque=?, emplacement=?, bloc=?, rangee=?, etage=?,
             statut=?, tva=?, no_fiche=?,
             prix_tarif_1=?, prix_tarif_2=?, prix_tarif_3=?
         WHERE id=?
@@ -649,6 +711,7 @@ def edit_produit(id):
         request.form.get('emplacement'),
         request.form.get('bloc'),
         request.form.get('rangee'),
+        request.form.get('etage'),
         request.form.get('statut', 'Actif'),
         request.form.get('tva') or 20,
         request.form.get('no_fiche'),
@@ -1199,6 +1262,139 @@ def delete_fournisseur(id):
     return redirect(url_for('fournisseurs_list'))
 
 
+# ─── PACKETS ──────────────────────────────────────────────────────────────────
+@app.route('/packets')
+@login_required
+def packets_list():
+    conn    = get_db_connection()
+    packets = conn.execute('''
+        SELECT pk.*,
+               COUNT(pi.id) AS nb_items,
+               COALESCE(SUM(p.prix_tarif_1 * pi.quantite), 0) AS tarif_1
+        FROM packets pk
+        LEFT JOIN packet_items pi ON pi.packet_id = pk.id
+        LEFT JOIN produits p ON pi.produit_id = p.id
+        GROUP BY pk.id
+        ORDER BY pk.nom
+    ''').fetchall()
+    conn.close()
+    return render_template('packets.html', packets=packets)
+
+
+@app.route('/packets/new', methods=['GET', 'POST'])
+@login_required
+def new_packet():
+    conn = get_db_connection()
+    if request.method == 'POST':
+        nom  = request.form.get('nom', '').strip()
+        desc = request.form.get('description', '').strip()
+        if nom:
+            ref = request.form.get('reference', '').strip() or _generate_packet_reference(conn)
+            conn.execute('INSERT INTO packets (nom, description, reference) VALUES (?,?,?)', (nom, desc, ref))
+            conn.commit()
+            new_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            conn.close()
+            return redirect(url_for('packet_detail', id=new_id))
+    produits = conn.execute('SELECT * FROM produits ORDER BY marque, nom').fetchall()
+    conn.close()
+    return render_template('packet_detail.html', packet=None, items=[], produits=produits)
+
+
+@app.route('/packets/<int:id>')
+@login_required
+def packet_detail(id):
+    conn   = get_db_connection()
+    packet = conn.execute('SELECT * FROM packets WHERE id=?', (id,)).fetchone()
+    if not packet:
+        conn.close()
+        return redirect(url_for('packets_list'))
+    items = conn.execute('''
+        SELECT pi.*, p.nom AS produit_nom, p.reference AS produit_ref,
+               p.marque, p.prix_tarif_1, p.prix_tarif_2, p.prix_tarif_3
+        FROM packet_items pi
+        JOIN produits p ON pi.produit_id = p.id
+        WHERE pi.packet_id = ?
+        ORDER BY p.marque, p.nom
+    ''', (id,)).fetchall()
+    produits = conn.execute('SELECT * FROM produits ORDER BY marque, nom').fetchall()
+    # Compute totals
+    t1 = sum((item['prix_tarif_1'] or 0) * item['quantite'] for item in items)
+    t2 = round(t1 * 1.25, 4)
+    t3 = round(t2 * 1.25, 4)
+    conn.close()
+    return render_template('packet_detail.html', packet=packet, items=items, produits=produits,
+                           t1=t1, t2=t2, t3=t3)
+
+
+@app.route('/packets/<int:id>/edit', methods=['POST'])
+@login_required
+def edit_packet(id):
+    conn = get_db_connection()
+    conn.execute('UPDATE packets SET nom=?, description=? WHERE id=?',
+                 (request.form.get('nom', ''), request.form.get('description', ''), id))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('packet_detail', id=id))
+
+
+@app.route('/packets/<int:id>/add-item', methods=['POST'])
+@login_required
+def add_packet_item(id):
+    produit_id = request.form.get('produit_id')
+    quantite   = float(request.form.get('quantite', 1) or 1)
+    if produit_id:
+        conn = get_db_connection()
+        existing = conn.execute(
+            'SELECT id FROM packet_items WHERE packet_id=? AND produit_id=?', (id, produit_id)
+        ).fetchone()
+        if existing:
+            conn.execute('UPDATE packet_items SET quantite=quantite+? WHERE id=?',
+                         (quantite, existing['id']))
+        else:
+            conn.execute('INSERT INTO packet_items (packet_id, produit_id, quantite) VALUES (?,?,?)',
+                         (id, produit_id, quantite))
+        conn.commit()
+        conn.close()
+    return redirect(url_for('packet_detail', id=id))
+
+
+@app.route('/packets/<int:pid>/item/<int:iid>/delete', methods=['POST'])
+@login_required
+def delete_packet_item(pid, iid):
+    conn = get_db_connection()
+    conn.execute('DELETE FROM packet_items WHERE id=? AND packet_id=?', (iid, pid))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('packet_detail', id=pid))
+
+
+@app.route('/packets/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_packet(id):
+    conn = get_db_connection()
+    conn.execute('DELETE FROM packets WHERE id=?', (id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('packets_list'))
+
+
+# ─── API: PACKET TARIFS ───────────────────────────────────────────────────────
+@app.route('/api/packets/<int:id>/tarifs')
+@login_required
+def api_packet_tarifs(id):
+    conn  = get_db_connection()
+    items = conn.execute('''
+        SELECT pi.quantite, p.prix_tarif_1
+        FROM packet_items pi JOIN produits p ON pi.produit_id = p.id
+        WHERE pi.packet_id = ?
+    ''', (id,)).fetchall()
+    conn.close()
+    t1 = round(sum((i['prix_tarif_1'] or 0) * i['quantite'] for i in items), 4)
+    t2 = round(t1 * 1.25, 4)
+    t3 = round(t2 * 1.25, 4)
+    return jsonify({'t1': t1, 't2': t2, 't3': t3})
+
+
 # ─── DELETE PRODUIT ───────────────────────────────────────────────────────────
 @app.route('/delete/<int:id>')
 @admin_required
@@ -1211,6 +1407,16 @@ def delete(id):
 
 
 # ─── VENTES : LISTE ───────────────────────────────────────────────────────────
+VENTES_SORT_COLS = {
+    'numero':    'f.numero',
+    'date':      'f.date_facture',
+    'client':    'cl.nom',
+    'ht':        'f.montant_ht',
+    'ttc':       'f.montant_ttc',
+    'statut':    'f.statut',
+    'objet':     'f.objet',
+}
+
 @app.route('/ventes')
 @app.route('/ventes/<type_doc>')
 @login_required
@@ -1218,9 +1424,15 @@ def ventes(type_doc=None):
     conn      = get_db_connection()
     search    = request.args.get('search', '').strip()
     statut    = request.args.get('statut', '')
+    sort_col  = request.args.get('sort', 'date')
+    sort_dir  = request.args.get('dir', 'desc')
     type_document = type_doc or request.args.get('type', 'Facture')
     if type_document not in DOC_PREFIXES:
         type_document = 'Facture'
+    if sort_col not in VENTES_SORT_COLS:
+        sort_col = 'date'
+    if sort_dir not in ('asc', 'desc'):
+        sort_dir = 'desc'
 
     query  = '''
         SELECT f.*, cl.nom AS client_nom
@@ -1238,7 +1450,7 @@ def ventes(type_doc=None):
         params.append(statut)
     if wheres:
         query += ' WHERE ' + ' AND '.join(wheres)
-    query   += ' ORDER BY f.date_facture DESC'
+    query   += f' ORDER BY {VENTES_SORT_COLS[sort_col]} {sort_dir.upper()}'
     factures = conn.execute(query, params).fetchall()
 
     # Stats for this document type only
@@ -1252,7 +1464,8 @@ def ventes(type_doc=None):
                            factures=factures, stats=stats_dict,
                            total_all=total_all, total_ttc=total_ttc,
                            search_query=search, statut_filtre=statut,
-                           type_document=type_document)
+                           type_document=type_document,
+                           sort_col=sort_col, sort_dir=sort_dir)
 
 
 # ─── VENTES : NOUVELLE FACTURE / DOCUMENT ─────────────────────────────────────
@@ -1372,6 +1585,10 @@ def update_facture_header(id):
     return redirect(url_for('edit_facture', id=id))
 
 
+# Statut progression order for employee role
+STATUT_ORDER = ['En instance', 'Impayé', 'Partiellement payé', 'Payé']
+
+
 # ─── VENTES : STATUT ──────────────────────────────────────────────────────────
 @app.route('/facture/<int:id>/statut', methods=['POST'])
 @login_required
@@ -1380,6 +1597,14 @@ def update_facture_statut(id):
     new_statut = request.form.get('statut', 'En instance')
     old        = conn.execute('SELECT statut FROM factures WHERE id=?', (id,)).fetchone()
     old_statut = old['statut'] if old else ''
+    # Employees can only advance the statut, not go backwards
+    if session.get('role') != 'admin':
+        old_idx = STATUT_ORDER.index(old_statut) if old_statut in STATUT_ORDER else -1
+        new_idx = STATUT_ORDER.index(new_statut) if new_statut in STATUT_ORDER else -1
+        if new_idx < old_idx:
+            flash("Vous n'avez pas les droits pour revenir à un statut antérieur.", 'danger')
+            conn.close()
+            return redirect(url_for('edit_facture', id=id))
     conn.execute('UPDATE factures SET statut=? WHERE id=?', (new_statut, id))
     # Deduct stock when marking as Payé (only once, not if already Payé)
     if new_statut == 'Payé' and old_statut != 'Payé':
@@ -1431,17 +1656,11 @@ def add_facture_ligne(id):
     designation = request.form.get('designation', '').strip()
     reference   = request.form.get('reference',  '').strip()
 
-    if not designation and produit_id:
+    if produit_id and not reference:
         conn_tmp = get_db_connection()
-        p = conn_tmp.execute('SELECT nom, reference FROM produits WHERE id=?', (produit_id,)).fetchone()
-        if p:
-            designation = p['nom']
-            if not reference:
-                reference = p['reference'] or ''
-        if lot_id:
-            l = conn_tmp.execute('SELECT lot_numero FROM lots WHERE id=?', (lot_id,)).fetchone()
-            if l and l['lot_numero']:
-                designation += f" LOT:{l['lot_numero']}"
+        p = conn_tmp.execute('SELECT reference FROM produits WHERE id=?', (produit_id,)).fetchone()
+        if p and p['reference']:
+            reference = p['reference']
         conn_tmp.close()
 
     montant_ht = round(quantite * prix * (1 - remise / 100), 4)
@@ -1776,6 +1995,92 @@ def admin_reset_password(uid):
         conn.commit()
         conn.close()
     return redirect(url_for('admin_users'))
+
+
+# ─── CLIENT SIDE (ADMIN VIEW) ─────────────────────────────────────────────────
+@app.route('/client-side')
+@login_required
+def client_side():
+    conn    = get_db_connection()
+    clients = conn.execute('''
+        SELECT c.*,
+               COUNT(DISTINCT f.id) AS nb_factures,
+               COALESCE(SUM(CASE WHEN f.type_document='Facture' THEN f.montant_ttc ELSE 0 END), 0) AS total_ttc
+        FROM clients c
+        LEFT JOIN factures f ON f.client_id = c.id AND f.statut != 'Annulé'
+        WHERE (c.est_fournisseur IS NULL OR c.est_fournisseur = 0)
+        GROUP BY c.id
+        ORDER BY c.nom
+    ''').fetchall()
+    conn.close()
+    return render_template('client_side.html', clients=clients)
+
+
+# ─── CLIENT PORTAL ────────────────────────────────────────────────────────────
+@app.route('/clients/<int:id>/portal-generate', methods=['POST'])
+@login_required
+def generate_portal_token(id):
+    conn  = get_db_connection()
+    token = secrets.token_urlsafe(24)
+    conn.execute('UPDATE clients SET portal_token=? WHERE id=?', (token, id))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('client_detail', id=id))
+
+
+@app.route('/portal/<token>')
+def client_portal(token):
+    """Public portal — no login required, access via token."""
+    conn    = get_db_connection()
+    client  = conn.execute('SELECT * FROM clients WHERE portal_token=?', (token,)).fetchone()
+    if not client:
+        conn.close()
+        return render_template('portal_error.html'), 404
+
+    tab = request.args.get('tab', 'documents')
+
+    # Factures for this client
+    factures = conn.execute('''
+        SELECT * FROM factures
+        WHERE client_id=? AND type_document='Facture' AND statut != 'Annulé'
+        ORDER BY date_facture DESC
+    ''', (client['id'],)).fetchall()
+
+    # Bons de livraison
+    bons_livraison = conn.execute('''
+        SELECT * FROM factures
+        WHERE client_id=? AND type_document='Bon de livraison'
+        ORDER BY date_facture DESC
+    ''', (client['id'],)).fetchall()
+
+    # Grand livre: factures (out) + avoirs (in)
+    grand_livre = conn.execute('''
+        SELECT f.numero, f.date_facture, f.type_document,
+               f.montant_ttc, f.statut,
+               CASE WHEN f.type_document='Avoir' THEN 'Entrée' ELSE 'Sortie' END AS sens
+        FROM factures f
+        WHERE f.client_id=? AND f.type_document IN ('Facture','Avoir') AND f.statut != 'Annulé'
+        ORDER BY f.date_facture DESC
+    ''', (client['id'],)).fetchall()
+
+    # Compute solde: factures TTC - avoirs TTC
+    total_factures = sum(f['montant_ttc'] or 0 for f in factures)
+    total_avoirs   = sum(
+        a['montant_ttc'] or 0 for a in conn.execute(
+            "SELECT montant_ttc FROM factures WHERE client_id=? AND type_document='Avoir'",
+            (client['id'],)
+        ).fetchall()
+    )
+    solde = total_factures - abs(total_avoirs)
+
+    conn.close()
+    return render_template('client_portal.html',
+                           client=client, token=token, tab=tab,
+                           factures=factures, bons_livraison=bons_livraison,
+                           grand_livre=grand_livre,
+                           total_factures=total_factures,
+                           total_avoirs=total_avoirs,
+                           solde=solde)
 
 
 if __name__ == '__main__':

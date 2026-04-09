@@ -82,7 +82,7 @@
     <div class="bg-white border-bottom px-4 pt-3">
         {% set td = type_document or 'Facture' %}
         <div class="d-flex gap-4 mb-0">
-            {% for doc_type, doc_label in [('Devis','Devis'), ('Bon de travail','Bon de travail'), ('Facture','Factures'), ('Bon de livraison','Bon de Livraison'), ('Avoir','Avoir')] %}
+            {% for doc_type, doc_label in [('Devis','Devis'), ('Bon de travail','Bon de travail'), ('Bon de livraison','Bon de Livraison'), ('Facture','Factures'), ('Avoir','Avoir')] %}
             <a href="{{ url_for('ventes', type_doc=doc_type) }}"
                class="text-decoration-none pb-2 {% if td == doc_type %}fw-bold heading{% endif %}"
                style="{% if td == doc_type %}color:var(--text); border-bottom:2px solid var(--primary);{% else %}color:var(--text-tertiary);{% endif %} font-size:0.88rem;">
@@ -94,7 +94,8 @@
 
     <div class="content-padding">
 
-        <!-- Stat cards -->
+        <!-- Stat cards (factures only) -->
+        {% if td == 'Facture' %}
         <div class="d-flex gap-3 mb-4 flex-wrap">
             {% set s_imp = stats.get('Impay\u00e9', {'nb':0,'total':0}) %}
             {% set pct_imp = ((s_imp.total or 0) / total_ttc * 100) | round(2) if total_ttc else 0 %}
@@ -144,8 +145,10 @@
                 </div>
             </a>
         </div>
+        {% endif %}
 
-        <!-- Statut filter buttons -->
+        <!-- Statut filter buttons (factures only) -->
+        {% if td == 'Facture' %}
         <div class="d-flex gap-2 mb-3 flex-wrap animate-in">
             <a href="{{ url_for('ventes', type_doc=td, search=search_query) }}"
                class="btn btn-sm {% if not statut_filtre %}btn-info text-white{% else %}btn-outline-secondary{% endif %}"
@@ -163,6 +166,7 @@
                class="btn btn-sm {% if statut_filtre == 'En instance' %}btn-secondary text-white{% else %}btn-outline-secondary{% endif %}"
                style="border-radius:var(--radius-full); font-size:0.78rem;">En instance</a>
         </div>
+        {% endif %}
 
         <!-- Search + actions -->
         <div class="d-flex justify-content-between align-items-center mb-3 animate-in animate-in-delay-3">
@@ -191,24 +195,28 @@
             <div class="d-flex gap-2 align-items-center">
                 <small style="color:var(--text-tertiary); font-weight:500;">dh - MAD</small>
                 <button class="btn btn-white btn-sm" style="border-radius:var(--radius-full);"><i class="fas fa-sort me-1"></i> Trier</button>
-                <button class="btn btn-white btn-sm" style="border-radius:var(--radius-full);"><i class="fas fa-columns me-1"></i> Champs</button>
+                <button class="btn btn-white btn-sm" style="border-radius:var(--radius-full);" data-bs-toggle="modal" data-bs-target="#champsModal"><i class="fas fa-columns me-1"></i> Champs</button>
                 <button class="btn btn-white btn-sm" style="border-radius:var(--radius-full);"><i class="fas fa-download me-1"></i> Exporter</button>
             </div>
         </div>
 
         <!-- Invoice table -->
         <div class="table-container">
-            <table class="table align-middle mb-0 table-hover">
+            {% macro sort_icon(col) %}{% if sort_col == col %}{% if sort_dir == 'asc' %}<i class="fas fa-sort-up ms-1 small"></i>{% else %}<i class="fas fa-sort-down ms-1 small"></i>{% endif %}{% else %}<i class="fas fa-sort ms-1 small" style="opacity:0.4;"></i>{% endif %}{% endmacro %}
+            {% macro sort_url(col) %}{{ url_for('ventes', type_doc=td, search=search_query, statut=statut_filtre, sort=col, dir='asc' if (sort_col == col and sort_dir == 'desc') else ('desc' if sort_col == col else 'asc')) }}{% endmacro %}
+            <table class="table align-middle mb-0 table-hover" id="ventesTable">
                 <thead>
                     <tr>
                         <th class="ps-4" style="width:40px;"><input type="checkbox" class="form-check-input"></th>
-                        <th>Num&eacute;ro</th>
-                        <th>Date de facture</th>
-                        <th>Client</th>
-                        <th>Total HT</th>
-                        <th>Montant TTC</th>
-                        <th>Statut</th>
-                        <th>Objet</th>
+                        <th data-col="numero"><a href="{{ sort_url('numero') }}" class="text-white text-decoration-none">Num&eacute;ro {{ sort_icon('numero') }}</a></th>
+                        <th data-col="date"><a href="{{ sort_url('date') }}" class="text-white text-decoration-none">Date {{ sort_icon('date') }}</a></th>
+                        <th data-col="client"><a href="{{ sort_url('client') }}" class="text-white text-decoration-none">Client {{ sort_icon('client') }}</a></th>
+                        <th data-col="ht"><a href="{{ sort_url('ht') }}" class="text-white text-decoration-none">Total HT {{ sort_icon('ht') }}</a></th>
+                        <th data-col="ttc"><a href="{{ sort_url('ttc') }}" class="text-white text-decoration-none">Montant TTC {{ sort_icon('ttc') }}</a></th>
+                        <th data-col="statut"><a href="{{ sort_url('statut') }}" class="text-white text-decoration-none">Statut {{ sort_icon('statut') }}</a></th>
+                        <th data-col="objet"><a href="{{ sort_url('objet') }}" class="text-white text-decoration-none">Objet {{ sort_icon('objet') }}</a></th>
+                        <th data-col="bon_de_travail" class="text-center">Bon de travail</th>
+                        <th data-col="bon_de_livraison" class="text-center">Bon de Livraison</th>
                         <th class="text-end pe-4">Options</th>
                     </tr>
                 </thead>
@@ -218,12 +226,12 @@
                         <td class="ps-4" onclick="event.stopPropagation()">
                             <input type="checkbox" class="form-check-input">
                         </td>
-                        <td class="fw-bold" style="color:var(--primary);">{{ f.numero }}</td>
-                        <td style="color:var(--text-secondary); font-size:0.84rem;">{{ f.date_facture or '&mdash;' }}</td>
-                        <td style="font-weight:600;">{{ f.client_nom or '&mdash;' }}</td>
-                        <td style="font-size:0.88rem;">{{ "%.2f"|format(f.montant_ht or 0) }} dh</td>
-                        <td style="font-weight:700; font-size:0.88rem;">{{ "%.2f"|format(f.montant_ttc or 0) }} dh</td>
-                        <td>
+                        <td data-col="numero" class="fw-bold" style="color:var(--primary);">{{ f.numero }}</td>
+                        <td data-col="date" style="color:var(--text-secondary); font-size:0.84rem;">{{ f.date_facture or '' }}</td>
+                        <td data-col="client" style="font-weight:600;">{{ f.client_nom or '' }}</td>
+                        <td data-col="ht" style="font-size:0.88rem;">{{ "%.2f"|format(f.montant_ht or 0) }} dh</td>
+                        <td data-col="ttc" style="font-weight:700; font-size:0.88rem;">{{ "%.2f"|format(f.montant_ttc or 0) }} dh</td>
+                        <td data-col="statut">
                             {% set s = f.statut or 'En instance' %}
                             {% if s == 'Impay\u00e9' %}
                                 <span class="badge bg-danger px-2 py-1">{{ s }}</span>
@@ -235,7 +243,13 @@
                                 <span class="badge bg-secondary px-2 py-1">{{ s }}</span>
                             {% endif %}
                         </td>
-                        <td style="color:var(--text-tertiary); font-size:0.84rem;">{{ f.objet or '&mdash;' }}</td>
+                        <td data-col="objet" style="color:var(--text-tertiary); font-size:0.84rem;">{{ f.objet or '' }}</td>
+                        <td data-col="bon_de_travail" class="text-center" onclick="event.stopPropagation()">
+                            {% if f.devis_ref %}<span class="badge bg-info text-white" style="font-size:0.72rem;">{{ f.devis_ref }}</span>{% else %}{% endif %}
+                        </td>
+                        <td data-col="bon_de_livraison" class="text-center" onclick="event.stopPropagation()">
+                            
+                        </td>
                         <td class="text-end pe-4" onclick="event.stopPropagation()">
                             <a href="{{ url_for('edit_facture', id=f.id) }}"
                                class="btn btn-sm btn-outline-primary me-1" style="border-radius:var(--radius-sm); border-color:var(--border); color:var(--primary);" title="&Eacute;diter">
@@ -256,9 +270,9 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="9" class="empty-state">
+                        <td colspan="11" class="empty-state">
                             <i class="fas fa-file-invoice"></i>
-                            Aucune facture trouv&eacute;e.
+                            Aucun document trouv&eacute;.
                         </td>
                     </tr>
                     {% endfor %}
@@ -281,11 +295,87 @@
     </a>
 </div>
 
+<!-- Champs Modal -->
+<div class="modal fade" id="champsModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content" style="border-radius:var(--radius-lg); border:1px solid var(--border-light);">
+            <div class="modal-header" style="border-bottom:1px solid var(--border-light); padding:16px 20px;">
+                <h6 class="modal-title fw-bold"><i class="fas fa-columns me-2" style="color:var(--primary);"></i>Champs &agrave; afficher</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding:16px 20px;">
+                <div id="champsList"></div>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid var(--border-light); padding:12px 20px;">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetChamps()" style="border-radius:var(--radius-sm);">R&eacute;initialiser</button>
+                <button type="button" class="btn btn-sm btn-info text-white" data-bs-dismiss="modal" style="border-radius:var(--radius-sm);">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 document.querySelectorAll('tr[data-href]').forEach(function(row) {
     row.addEventListener('click', function() { window.location = this.dataset.href; });
 });
+
+// ── Champs column toggle ─────────────────────────────────────────────────────
+var CHAMPS_KEY = 'ventes_cols_{{ td }}';
+var COL_LABELS = {
+    'numero':           'Numéro',
+    'date':             'Date',
+    'client':           'Client',
+    'ht':               'Montant HT',
+    'ttc':              'Montant TTC',
+    'statut':           'Statut',
+    'objet':            'Objet',
+    'bon_de_travail':   'Bon de travail',
+    'bon_de_livraison': 'Bon de Livraison'
+};
+
+function getHiddenCols() {
+    try { return JSON.parse(localStorage.getItem(CHAMPS_KEY) || '[]'); } catch(e) { return []; }
+}
+function saveHiddenCols(arr) {
+    localStorage.setItem(CHAMPS_KEY, JSON.stringify(arr));
+}
+function applyColVisibility() {
+    var hidden = getHiddenCols();
+    document.querySelectorAll('[data-col]').forEach(function(el) {
+        el.style.display = hidden.indexOf(el.getAttribute('data-col')) >= 0 ? 'none' : '';
+    });
+}
+function buildChampsList() {
+    var hidden = getHiddenCols();
+    var container = document.getElementById('champsList');
+    container.innerHTML = '';
+    Object.keys(COL_LABELS).forEach(function(col) {
+        var checked = hidden.indexOf(col) < 0;
+        var div = document.createElement('div');
+        div.className = 'form-check mb-2';
+        div.innerHTML = '<input class="form-check-input" type="checkbox" id="col_' + col + '"'
+            + (checked ? ' checked' : '') + '>'
+            + '<label class="form-check-label" for="col_' + col + '" style="font-size:0.88rem;">'
+            + COL_LABELS[col] + '</label>';
+        div.querySelector('input').addEventListener('change', function() {
+            var h = getHiddenCols();
+            if (this.checked) { h = h.filter(function(c) { return c !== col; }); }
+            else { if (h.indexOf(col) < 0) h.push(col); }
+            saveHiddenCols(h);
+            applyColVisibility();
+        });
+        container.appendChild(div);
+    });
+}
+function resetChamps() {
+    saveHiddenCols([]);
+    applyColVisibility();
+    buildChampsList();
+}
+
+applyColVisibility();
+document.getElementById('champsModal').addEventListener('show.bs.modal', buildChampsList);
 </script>
 </body>
 </html>

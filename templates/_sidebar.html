@@ -35,7 +35,7 @@
             <span class="sidebar-text">Tableau de bord</span>
         </a>
         <a href="{{ url_for('producten') }}"
-           class="nav-link {% if request.endpoint in ['producten','produit_detail','add','edit_produit'] %}active{% endif %}">
+           class="nav-link {% if request.endpoint in ['producten','produit_detail','add','edit_produit','packets_list','packet_detail','new_packet'] %}active{% endif %}">
             <i class="fas fa-box nav-icon"></i>
             <span class="sidebar-text">Produits</span>
         </a>
@@ -53,6 +53,11 @@
            class="nav-link {% if request.endpoint in ['clients_list','new_client','client_detail','edit_client'] %}active{% endif %}">
             <i class="fas fa-hospital nav-icon"></i>
             <span class="sidebar-text">Clients</span>
+        </a>
+        <a href="{{ url_for('client_side') }}"
+           class="nav-link {% if request.endpoint == 'client_side' %}active{% endif %}" title="Portail Client">
+            <i class="fas fa-user-circle nav-icon"></i>
+            <span class="sidebar-text">Client Side</span>
         </a>
         <a href="#" class="nav-link">
             <i class="fas fa-shopping-cart nav-icon"></i>

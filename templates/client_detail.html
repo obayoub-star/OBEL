@@ -73,14 +73,34 @@
                 </li>
             </ol>
         </nav>
-        <div class="d-flex gap-2 align-items-center">
+        <div class="d-flex gap-2 align-items-center flex-wrap">
             {% if not is_new %}
-            <span style="color:var(--text-tertiary); font-size:0.82rem; font-weight:500;">Profil</span>
+            <!-- Client portal link -->
+            {% if client.portal_token %}
+            <a href="{{ url_for('client_portal', token=client.portal_token) }}" target="_blank"
+               class="btn btn-sm btn-outline-success" style="border-radius:var(--radius-sm); font-size:0.8rem;">
+                <i class="fas fa-external-link-alt me-1"></i> Portail client
+            </a>
+            <button type="button" class="btn btn-sm btn-outline-secondary" style="border-radius:var(--radius-sm); font-size:0.8rem;"
+                    onclick="copyPortalLink()" title="Copier le lien">
+                <i class="fas fa-copy"></i>
+            </button>
+            {% endif %}
+            <form action="{{ url_for('generate_portal_token', id=client.id) }}" method="POST" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-outline-info" style="border-radius:var(--radius-sm); font-size:0.8rem;"
+                        onclick="return confirm('Générer {% if client.portal_token %}un nouveau{% else %}un{% endif %} lien portail pour ce client ?')">
+                    <i class="fas fa-link me-1"></i> {% if client.portal_token %}Renouveler lien{% else %}Créer lien portail{% endif %}
+                </button>
+            </form>
+            <span style="color:var(--text-tertiary); font-size:0.82rem; font-weight:500;">|</span>
             {% endif %}
             <a href="{{ url_for('clients_list') }}" id="retourBtn" class="btn btn-outline-secondary btn-sm px-3" style="border-radius:var(--radius-sm);">
                 <i class="fas fa-arrow-left me-1"></i> Retour
             </a>
         </div>
+        {% if not is_new and client.portal_token %}
+        <input type="hidden" id="portalTokenInput" value="{{ url_for('client_portal', token=client.portal_token, _external=True) }}">
+        {% endif %}
     </div>
 
     <div class="detail-wrapper">
@@ -373,7 +393,7 @@
                         {% for f in factures %}
                         <tr>
                             <td class="fw-bold" style="color:var(--primary);">{{ f.numero }}</td>
-                            <td style="color:var(--text-secondary); font-size:0.84rem;">{{ f.date_facture or '&mdash;' }}</td>
+                            <td style="color:var(--text-secondary); font-size:0.84rem;">{{ f.date_facture or '' }}</td>
                             <td>{{ "%.2f"|format(f.montant_ht or 0) }} dh</td>
                             <td class="fw-bold">{{ "%.2f"|format(f.montant_ttc or 0) }} dh</td>
                             <td>
@@ -410,7 +430,7 @@
                         {% for pv in prix_vente %}
                         <tr>
                             <td class="fw-bold">{{ pv.produit_nom }}</td>
-                            <td style="color:var(--text-tertiary); font-size:0.84rem;">{{ pv.produit_ref or '&mdash;' }}</td>
+                            <td style="color:var(--text-tertiary); font-size:0.84rem;">{{ pv.produit_ref or '' }}</td>
                             <td class="fw-bold" style="color:var(--primary);">{{ "%.2f"|format(pv.prix) }} dh</td>
                         </tr>
                         {% endfor %}
@@ -557,6 +577,15 @@ function copyBillingToShipping() {
     document.getElementById('liv_ville').value   = document.getElementById('fact_ville').value;
     document.getElementById('liv_region').value  = document.getElementById('fact_region').value;
     document.getElementById('liv_cp').value      = document.getElementById('fact_cp').value;
+}
+
+function copyPortalLink() {
+    var input = document.getElementById('portalTokenInput');
+    if (input) {
+        navigator.clipboard.writeText(input.value).then(function() {
+            alert('Lien copié : ' + input.value);
+        });
+    }
 }
 </script>
 </body>

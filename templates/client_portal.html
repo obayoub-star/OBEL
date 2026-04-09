@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedicaTronic – Espace Client</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #0c7b93;
+            --success: #10b981;
+            --danger:  #ef4444;
+            --warning: #f59e0b;
+            --text:    #1e293b;
+            --text-secondary: #64748b;
+            --bg:      #f8fafc;
+            --surface: #ffffff;
+            --border:  #e2e8f0;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; }
+        .portal-header {
+            background: linear-gradient(135deg, #0a3d52 0%, #0c7b93 100%);
+            color: white;
+            padding: 32px 40px;
+        }
+        .portal-header h1 { font-size: 1.4rem; font-weight: 700; margin: 0; }
+        .portal-header .subtitle { font-size: 0.84rem; opacity: 0.8; margin-top: 4px; }
+        .tab-nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 40px; }
+        .tab-nav a {
+            display: inline-block; padding: 14px 20px 12px;
+            text-decoration: none; font-size: 0.88rem; font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-nav a.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-nav a:hover:not(.active) { color: var(--text); }
+        .content { max-width: 1100px; margin: 32px auto; padding: 0 24px; }
+        .card-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+        .summary-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px 20px; text-align: center; }
+        .summary-item .val { font-size: 1.4rem; font-weight: 800; }
+        .summary-item .lbl { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+        table th { background: #f1f5f9; padding: 10px 14px; text-align: left; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); }
+        table td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        table tr:last-child td { border-bottom: none; }
+        .badge-statut { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
+        .badge-paye { background: #d1fae5; color: #065f46; }
+        .badge-impaye { background: #fee2e2; color: #991b1b; }
+        .badge-partiel { background: #fef3c7; color: #92400e; }
+        .badge-instance { background: #e2e8f0; color: #475569; }
+        .badge-entree { background: #d1fae5; color: #065f46; }
+        .badge-sortie { background: #fee2e2; color: #991b1b; }
+        .empty-msg { text-align: center; color: var(--text-secondary); padding: 40px; font-size: 0.88rem; }
+        footer { text-align: center; padding: 32px; color: var(--text-secondary); font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 48px; }
+    </style>
+</head>
+<body>
+
+<div class="portal-header">
+    <div style="max-width:1100px; margin:0 auto;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+            <div>
+                <h1><i class="fas fa-file-invoice me-2"></i>Espace Client</h1>
+                <div class="subtitle">{{ client.nom }}{% if client.ville %} &bull; {{ client.ville }}{% endif %}</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:0.78rem; opacity:0.7;">Solde restant</div>
+                <div style="font-size:1.6rem; font-weight:800;">{{ "%.2f"|format(solde) }} dh</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="tab-nav">
+    <a href="?tab=documents" class="{% if tab == 'documents' %}active{% endif %}">
+        <i class="fas fa-file-alt me-1"></i> Documents
+    </a>
+    <a href="?tab=grand_livre" class="{% if tab == 'grand_livre' %}active{% endif %}">
+        <i class="fas fa-book me-1"></i> Grand Livre
+    </a>
+</div>
+
+<div class="content">
+
+{% if tab == 'documents' %}
+
+    <!-- Summary -->
+    <div class="summary-grid">
+        <div class="summary-item">
+            <div class="val" style="color:var(--primary);">{{ factures|length }}</div>
+            <div class="lbl">Factures</div>
+        </div>
+        <div class="summary-item">
+            <div class="val" style="color:var(--primary);">{{ "%.2f"|format(total_factures) }} dh</div>
+            <div class="lbl">Total Facturé</div>
+        </div>
+        <div class="summary-item">
+            <div class="val" style="color:var(--success);">{{ bons_livraison|length }}</div>
+            <div class="lbl">Bons de Livraison</div>
+        </div>
+        <div class="summary-item">
+            <div class="val" style="color:{% if solde > 0 %}var(--danger){% else %}var(--success){% endif %};">{{ "%.2f"|format(solde) }} dh</div>
+            <div class="lbl">Solde Restant</div>
+        </div>
+    </div>
+
+    <!-- Factures -->
+    <div class="card-box">
+        <h5 style="font-size:0.95rem; font-weight:700; margin-bottom:18px;"><i class="fas fa-file-invoice me-2" style="color:var(--primary);"></i>Factures</h5>
+        {% if factures %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Référence</th>
+                    <th>Date</th>
+                    <th>Date d'échéance</th>
+                    <th>Montant HT</th>
+                    <th>Montant TTC</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in factures %}
+                <tr>
+                    <td><strong style="color:var(--primary);">{{ f.numero }}</strong></td>
+                    <td>{{ f.date_facture or '—' }}</td>
+                    <td>{{ f.date_echeance or '—' }}</td>
+                    <td>{{ "%.2f"|format(f.montant_ht or 0) }} dh</td>
+                    <td><strong>{{ "%.2f"|format(f.montant_ttc or 0) }} dh</strong></td>
+                    <td>
+                        {% set s = f.statut or 'En instance' %}
+                        <span class="badge-statut {% if s == 'Payé' %}badge-paye{% elif s == 'Impayé' %}badge-impaye{% elif s == 'Partiellement payé' %}badge-partiel{% else %}badge-instance{% endif %}">{{ s }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-msg"><i class="fas fa-file-invoice fa-2x mb-3 d-block" style="opacity:0.3;"></i>Aucune facture.</div>
+        {% endif %}
+    </div>
+
+    <!-- Bons de livraison -->
+    <div class="card-box">
+        <h5 style="font-size:0.95rem; font-weight:700; margin-bottom:18px;"><i class="fas fa-truck me-2" style="color:var(--primary);"></i>Bons de Livraison</h5>
+        {% if bons_livraison %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Référence</th>
+                    <th>Date</th>
+                    <th>Montant TTC</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bl in bons_livraison %}
+                <tr>
+                    <td><strong style="color:var(--primary);">{{ bl.numero }}</strong></td>
+                    <td>{{ bl.date_facture or '—' }}</td>
+                    <td><strong>{{ "%.2f"|format(bl.montant_ttc or 0) }} dh</strong></td>
+                    <td>
+                        {% set s = bl.statut or 'En instance' %}
+                        <span class="badge-statut badge-instance">{{ s }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-msg"><i class="fas fa-truck fa-2x mb-3 d-block" style="opacity:0.3;"></i>Aucun bon de livraison.</div>
+        {% endif %}
+    </div>
+
+{% elif tab == 'grand_livre' %}
+
+    <div class="card-box">
+        <h5 style="font-size:0.95rem; font-weight:700; margin-bottom:6px;"><i class="fas fa-book me-2" style="color:var(--primary);"></i>Grand Livre</h5>
+        <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:18px;">Entrées (avoirs) et sorties (factures) de produits.</p>
+        {% if grand_livre %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Référence</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Sens</th>
+                    <th>Montant TTC</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for gl in grand_livre %}
+                <tr>
+                    <td><strong style="color:var(--primary);">{{ gl.numero }}</strong></td>
+                    <td>{{ gl.date_facture or '—' }}</td>
+                    <td>{{ gl.type_document }}</td>
+                    <td>
+                        <span class="badge-statut {% if gl.sens == 'Entrée' %}badge-entree{% else %}badge-sortie{% endif %}">
+                            {% if gl.sens == 'Entrée' %}<i class="fas fa-arrow-down me-1"></i>{% else %}<i class="fas fa-arrow-up me-1"></i>{% endif %}
+                            {{ gl.sens }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if gl.type_document == 'Avoir' %}
+                        <span style="color:var(--success);">+ {{ "%.2f"|format((gl.montant_ttc or 0)|abs) }} dh</span>
+                        {% else %}
+                        <span style="color:var(--danger);">- {{ "%.2f"|format(gl.montant_ttc or 0) }} dh</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set s = gl.statut or 'En instance' %}
+                        <span class="badge-statut {% if s == 'Payé' %}badge-paye{% elif s == 'Impayé' %}badge-impaye{% elif s == 'Partiellement payé' %}badge-partiel{% else %}badge-instance{% endif %}">{{ s }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-msg"><i class="fas fa-book fa-2x mb-3 d-block" style="opacity:0.3;"></i>Aucune entrée dans le grand livre.</div>
+        {% endif %}
+    </div>
+
+{% endif %}
+
+</div>
+
+<footer>
+    MedicaTronic &bull; Espace Client &bull; Lien sécurisé
+</footer>
+
+</body>
+</html>

@@ -131,44 +131,74 @@
         </div>
         <div class="d-flex gap-2">
             <!-- Convertir dropdown -->
+            {% set target_icons = {'Facture':'fa-file-invoice','Devis':'fa-file-alt','Bon de travail':'fa-clipboard-list','Bon de livraison':'fa-truck','Avoir':'fa-undo'} %}
+            {% set all_types = ['Devis','Bon de travail','Bon de livraison','Facture','Avoir'] %}
+            {# Avoir can only be created from Facture #}
+            {% set convert_targets = all_types | reject('equalto', doc_type) | list %}
+            {% if doc_type != 'Facture' %}{% set convert_targets = convert_targets | reject('equalto', 'Avoir') | list %}{% endif %}
             <div class="dropdown">
                 <button class="btn btn-sm btn-outline-info dropdown-toggle" style="border-radius:var(--radius-sm);" data-bs-toggle="dropdown">
                     <i class="fas fa-random me-1"></i> Convertir en
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end" style="border-radius:var(--radius-md); border:1px solid var(--border-light); box-shadow:var(--shadow-lg);">
-                    {% set convert_targets = {'Devis':['Facture','Bon de travail','Bon de livraison'], 'Facture':['Bon de livraison','Avoir'], 'Bon de travail':['Facture','Bon de livraison'], 'Bon de livraison':['Facture'], 'Avoir':[]} %}
-                    {% set target_icons = {'Facture':'fa-file-invoice','Devis':'fa-file-alt','Bon de travail':'fa-clipboard-list','Bon de livraison':'fa-truck','Avoir':'fa-undo'} %}
-                    {% for target in convert_targets.get(doc_type, []) %}
+                    {# Linked documents (already exist) #}
+                    {% set linked_types = linked_docs | map(attribute='type_document') | list %}
+                    {% for target in convert_targets %}
                     <li>
-                        <form action="{{ url_for('convertir_document', id=facture.id, target_type=target) }}" method="POST">
+                        {% if target in linked_types %}
+                        {# Already exists — navigate to it #}
+                        {% set linked = linked_docs | selectattr('type_document', 'equalto', target) | first %}
+                        <a href="{{ url_for('edit_facture', id=linked.id) }}" class="dropdown-item">
+                            <i class="fas {{ target_icons.get(target, 'fa-file') }} me-2" style="color:var(--success);"></i>
+                            {{ target }} <small class="text-muted ms-1">({{ linked.numero }})</small>
+                        </a>
+                        {% else %}
+                        {# Does not exist yet — confirm before creating #}
+                        <form action="{{ url_for('convertir_document', id=facture.id, target_type=target) }}" method="POST"
+                              onsubmit="return confirm('Il n\'existe pas encore de {{ target }} lié(e). Voulez-vous en créer un(e) maintenant ?')">
                             <button type="submit" class="dropdown-item">
                                 <i class="fas {{ target_icons.get(target, 'fa-file') }} me-2" style="color:var(--primary);"></i> {{ target }}
+                                <small class="text-muted ms-1">(créer)</small>
                             </button>
                         </form>
+                        {% endif %}
                     </li>
                     {% endfor %}
-                    {% if not convert_targets.get(doc_type, []) %}
+                    {% if not convert_targets %}
                     <li><span class="dropdown-item text-muted small">Aucune conversion disponible</span></li>
                     {% endif %}
                 </ul>
             </div>
+            {% if doc_type == 'Facture' or doc_type == 'Avoir' %}
             <div class="dropdown">
                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" style="border-radius:var(--radius-sm);" data-bs-toggle="dropdown">
                     <i class="fas fa-exchange-alt me-1"></i> Statut
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end" style="border-radius:var(--radius-md); border:1px solid var(--border-light); box-shadow:var(--shadow-lg);">
-                    {% for st in ['En instance','Impay\u00e9','Partiellement pay\u00e9','Pay\u00e9'] %}
+                    {% set statut_order = ['En instance','Impayé','Partiellement payé','Payé'] %}
+                    {% set current_idx = statut_order.index(facture.statut) if facture.statut in statut_order else 0 %}
+                    {% for st in statut_order %}
+                    {% set st_idx = statut_order.index(st) %}
+                    {# Employees can only go forward #}
+                    {% if session.get('role') == 'admin' or st_idx >= current_idx %}
                     <li>
                         <form action="{{ url_for('update_facture_statut', id=facture.id) }}" method="POST">
                             <input type="hidden" name="statut" value="{{ st }}">
-                            <button type="submit" class="dropdown-item {% if facture.statut == st %}fw-bold{% endif %}">
+                            <button type="submit" class="dropdown-item {% if facture.statut == st %}fw-bold{% endif %}
+                                {% if session.get('role') != 'admin' and st_idx < current_idx %}text-muted disabled{% endif %}">
+                                {% if st == 'Impayé' %}<span class="badge bg-danger me-2" style="font-size:0.65rem;">●</span>{% endif %}
+                                {% if st == 'Partiellement payé' %}<span class="badge bg-warning me-2" style="font-size:0.65rem;">●</span>{% endif %}
+                                {% if st == 'Payé' %}<span class="badge bg-success me-2" style="font-size:0.65rem;">●</span>{% endif %}
+                                {% if st == 'En instance' %}<span class="badge bg-secondary me-2" style="font-size:0.65rem;">●</span>{% endif %}
                                 {{ st }}
                             </button>
                         </form>
                     </li>
+                    {% endif %}
                     {% endfor %}
                 </ul>
             </div>
+            {% endif %}
             <a href="{{ url_for('print_facture', id=facture.id) }}" target="_blank"
                class="btn btn-sm btn-outline-secondary" style="border-radius:var(--radius-sm);">
                 <i class="fas fa-print me-1"></i> Imprimer
@@ -199,7 +229,7 @@
                     <div class="col-md-6">
                         <label class="form-label fw-bold small" style="color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.06em; font-size:0.7rem;">Client *</label>
                         <div class="d-flex align-items-center gap-2">
-                            <span style="font-size:1.15rem; font-weight:700; font-family:'Outfit',sans-serif;">{{ facture.client_nom or '&mdash;' }}</span>
+                            <span style="font-size:1.15rem; font-weight:700; font-family:'Outfit',sans-serif;">{{ facture.client_nom or '' }}</span>
                             <button type="button" class="btn btn-sm btn-link p-0" style="color:var(--primary);"
                                     data-bs-toggle="modal" data-bs-target="#editHeaderModal">
                                 <i class="fas fa-edit"></i>
@@ -248,7 +278,7 @@
                             {% endif %}
                             <div class="col-6">
                                 <span style="color:var(--text-tertiary); font-size:0.72rem;">Stock</span>
-                                <div style="font-size:0.88rem;">{{ facture.emplacement_stock or '&mdash;' }}</div>
+                                <div style="font-size:0.88rem;">{{ facture.emplacement_stock or '' }}</div>
                             </div>
                             {% if facture.objet %}
                             <div class="col-12">
@@ -364,10 +394,12 @@
                             <th>Rayonnage</th>
                             <th>P&eacute;remption</th>
                             {% else %}
+                            <th>Lot</th>
                             <th>Qt&eacute;</th>
                             <th>Unitaire</th>
                             <th>TVA</th>
                             <th>Total</th>
+                            {% if doc_type == 'Facture' %}<th>Verval datum</th>{% endif %}
                             {% endif %}
                             <th style="width:50px;"></th>
                         </tr>
@@ -393,10 +425,14 @@
                             </td>
                             <td style="font-size:0.82rem; color:var(--text-secondary);">{{ ligne.lot_date_expiration or '' }}</td>
                             {% else %}
+                            <td style="font-size:0.82rem; color:var(--text-secondary);">{{ ligne.lot_numero or '' }}</td>
                             <td>{{ ligne.quantite }}</td>
                             <td>{{ "%.2f"|format(ligne.prix_unitaire) }}</td>
                             <td>{{ "%.0f"|format(ligne.tva) }}%</td>
                             <td style="font-weight:700;">{{ "%.2f"|format(ligne.montant_ht) }}</td>
+                            {% if doc_type == 'Facture' %}
+                            <td style="font-size:0.82rem; color:var(--text-secondary);">{{ ligne.lot_date_expiration or '' }}</td>
+                            {% endif %}
                             {% endif %}
                             <td class="d-flex gap-1">
                                 <button type="button" class="btn btn-sm btn-link p-0 edit-ligne-btn" style="color:var(--primary);"
@@ -461,7 +497,7 @@
 
             <div class="info-field">
                 <label>Client</label>
-                <div style="font-weight:600; font-size:0.88rem;">{{ facture.client_nom or '&mdash;' }}</div>
+                <div style="font-weight:600; font-size:0.88rem;">{{ facture.client_nom or '' }}</div>
                 {% if facture.client_adresse %}
                 <div style="color:var(--text-tertiary); font-size:0.75rem;">{{ facture.client_adresse }}{% if facture.client_ville %}, {{ facture.client_ville }}{% endif %}</div>
                 {% endif %}
@@ -475,15 +511,15 @@
             </div>
             <div class="info-field">
                 <label>Date facture</label>
-                <div style="font-size:0.85rem;">{{ facture.date_facture or '&mdash;' }}</div>
+                <div style="font-size:0.85rem;">{{ facture.date_facture or '' }}</div>
             </div>
             <div class="info-field">
                 <label>&Eacute;ch&eacute;ance</label>
-                <div style="font-size:0.85rem;">{{ facture.date_echeance or '&mdash;' }}</div>
+                <div style="font-size:0.85rem;">{{ facture.date_echeance or '' }}</div>
             </div>
             <div class="info-field">
                 <label>Objet</label>
-                <div style="font-weight:600; font-size:0.85rem;">{{ facture.objet or '&mdash;' }}</div>
+                <div style="font-weight:600; font-size:0.85rem;">{{ facture.objet or '' }}</div>
             </div>
 
             <hr style="border-color:var(--border-light);">
@@ -590,7 +626,7 @@
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Date de facture</label>
                             <div class="form-control" style="background:var(--bg); color:var(--text-secondary);">
-                                <i class="fas fa-lock me-1 small"></i>{{ facture.date_facture or '&mdash;' }}
+                                <i class="fas fa-lock me-1 small"></i>{{ facture.date_facture or '' }}
                                 <small class="d-block" style="font-size:0.7rem; color:var(--text-tertiary);">Fix&eacute;e &agrave; la cr&eacute;ation</small>
                             </div>
                         </div>
@@ -654,11 +690,7 @@
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-bold">Prix unitaire</label>
-                            <input type="number" name="prix_unitaire" id="editLignePrix" class="form-control" step="0.01">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold">TVA (%)</label>
-                            <input type="number" name="tva" id="editLigneTva" class="form-control" step="0.1">
+                            <input type="number" name="prix_unitaire" id="editLignePrix" class="form-control" step="0.01"{% if session.get('role') != 'admin' %} readonly style="background:var(--bg);"{% endif %}>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-bold">Description</label>
@@ -803,7 +835,6 @@ document.querySelectorAll('.edit-ligne-btn').forEach(function(btn) {
         document.getElementById('editLigneForm').action = '/facture/{{ facture.id }}/ligne/' + lid + '/edit';
         document.getElementById('editLigneQty').value   = qty;
         document.getElementById('editLignePrix').value  = prix;
-        document.getElementById('editLigneTva').value   = tva;
         document.getElementById('editLigneDesig').value = desig;
         bootstrap.Modal.getOrCreateInstance(document.getElementById('editLigneModal')).show();
     });

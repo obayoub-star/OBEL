@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedicaTronic - Client Side</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+    <div class="bg-white border-bottom px-4 pt-3 pb-3">
+        <h5 class="fw-bold mb-0 heading" style="font-size:1rem;"><i class="fas fa-user-circle me-2" style="color:var(--primary);"></i>Client Side — Portails clients</h5>
+        <p class="mb-0 mt-1" style="color:var(--text-tertiary); font-size:0.82rem;">Gérez les liens d'accès de vos clients à leur espace personnel.</p>
+    </div>
+
+    <div class="content-padding">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} alert-dismissible fade show mb-3" role="alert">
+            {{ msg }} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endwith %}
+
+        <div class="table-container">
+            <table class="table align-middle mb-0 table-hover">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Client</th>
+                        <th>Ville</th>
+                        <th>Factures</th>
+                        <th>Total facturé</th>
+                        <th>Lien portail</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cl in clients %}
+                    <tr>
+                        <td class="ps-4">
+                            <a href="{{ url_for('client_detail', id=cl.id) }}" class="fw-bold text-decoration-none" style="color:var(--primary);">{{ cl.nom }}</a>
+                            {% if cl.code_client %}<small class="d-block" style="color:var(--text-tertiary); font-size:0.72rem;">{{ cl.code_client }}</small>{% endif %}
+                        </td>
+                        <td style="color:var(--text-secondary); font-size:0.84rem;">{{ cl.ville or '' }}</td>
+                        <td><span class="badge bg-secondary">{{ cl.nb_factures }}</span></td>
+                        <td style="font-weight:600;">{{ "%.2f"|format(cl.total_ttc) }} dh</td>
+                        <td style="font-size:0.82rem;">
+                            {% if cl.portal_token %}
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-success" style="font-size:0.68rem;"><i class="fas fa-check me-1"></i>Actif</span>
+                                <a href="{{ url_for('client_portal', token=cl.portal_token) }}" target="_blank"
+                                   class="btn btn-sm btn-outline-success py-0 px-2" style="border-radius:var(--radius-sm); font-size:0.76rem;">
+                                    <i class="fas fa-external-link-alt me-1"></i>Ouvrir
+                                </a>
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="border-radius:var(--radius-sm); font-size:0.76rem;"
+                                        onclick="copyLink('{{ request.url_root.rstrip('/') }}{{ url_for('client_portal', token=cl.portal_token) }}')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            {% else %}
+                            <span class="badge bg-light text-secondary border" style="font-size:0.68rem;">Aucun lien</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <form action="{{ url_for('generate_portal_token', id=cl.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm {% if cl.portal_token %}btn-outline-warning{% else %}btn-outline-info{% endif %}" style="border-radius:var(--radius-sm); font-size:0.78rem;"
+                                        onclick="return confirm('{% if cl.portal_token %}Renouveler le lien pour {{ cl.nom }} ?{% else %}Créer un lien portail pour {{ cl.nom }} ?{% endif %}')">
+                                    <i class="fas fa-{% if cl.portal_token %}refresh{% else %}link{% endif %} me-1"></i>
+                                    {% if cl.portal_token %}Renouveler{% else %}Créer lien{% endif %}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <i class="fas fa-users"></i> Aucun client.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3" style="color:var(--text-tertiary); font-size:0.8rem;">
+            <i class="fas fa-info-circle me-1" style="opacity:0.5;"></i>
+            {{ clients|length }} client(s) · {{ clients|selectattr('portal_token')|list|length }} avec un lien actif
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function copyLink(url) {
+    navigator.clipboard.writeText(url).then(function() {
+        alert('Lien copié :\n' + url);
+    });
+}
+</script>
+</body>
+</html>

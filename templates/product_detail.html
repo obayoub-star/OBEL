@@ -155,13 +155,18 @@
                             <label class="field-label">Rang&eacute;e</label>
                             <input type="text" name="rangee" class="form-control form-control-sm" value="{{ produit.rangee or '' }}">
                         </div>
+                        <div class="col-md-3">
+                            <label class="field-label">&Eacute;tage</label>
+                            <input type="text" name="etage" class="form-control form-control-sm" value="{{ produit.etage or '' }}">
+                        </div>
                     </div>
-                    {% if produit.emplacement or produit.bloc or produit.rangee %}
+                    {% if produit.emplacement or produit.bloc or produit.rangee or produit.etage %}
                     <div class="location-box mt-3">
                         <i class="fas fa-warehouse me-2" style="color:var(--primary);"></i>
-                        <strong>{{ produit.emplacement or '&mdash;' }}</strong>
+                        <strong>{{ produit.emplacement or '' }}</strong>
                         {% if produit.bloc %} &rsaquo; <span style="color:var(--text-secondary);">{{ produit.bloc }}</span>{% endif %}
                         {% if produit.rangee %} &rsaquo; <span style="color:var(--text-secondary);">{{ produit.rangee }}</span>{% endif %}
+                        {% if produit.etage %} &rsaquo; <span style="color:var(--text-secondary);">&Eacute;tage {{ produit.etage }}</span>{% endif %}
                     </div>
                     {% endif %}
                 </div>
@@ -280,15 +285,15 @@
                     <tbody>
                         {% for mvt in mouvements %}
                         <tr>
-                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ mvt.date_mvt or '&mdash;' }}</td>
+                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ mvt.date_mvt or '' }}</td>
                             <td>
                                 {% if mvt.type_mvt == 'Entr\u00e9e' %}<span class="badge bg-success"><i class="fas fa-arrow-down me-1"></i>Entr&eacute;e</span>
                                 {% elif mvt.type_mvt == 'Sortie' %}<span class="badge bg-danger"><i class="fas fa-arrow-up me-1"></i>Sortie</span>
                                 {% else %}<span class="badge bg-secondary">{{ mvt.type_mvt }}</span>{% endif %}
                             </td>
                             <td><strong>{{ mvt.quantite }}</strong></td>
-                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ mvt.reference or '&mdash;' }}</td>
-                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ mvt.note or '&mdash;' }}</td>
+                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ mvt.reference or '' }}</td>
+                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ mvt.note or '' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -332,19 +337,19 @@
                     <tbody>
                         {% for lot in lots %}
                         <tr>
-                            <td class="fw-bold">{{ lot.lot_numero or '&mdash;' }}</td>
-                            <td>{{ lot.site or '&mdash;' }}</td>
-                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ lot.date_production or '&mdash;' }}</td>
-                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ lot.date_expiration or '&mdash;' }}</td>
+                            <td class="fw-bold">{{ lot.lot_numero or '' }}</td>
+                            <td>{{ lot.site or '' }}</td>
+                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ lot.date_production or '' }}</td>
+                            <td style="color:var(--text-tertiary); font-size:0.82rem;">{{ lot.date_expiration or '' }}</td>
                             <td>
                                 {% if lot.warehouse %}
                                 <span class="badge" style="background:var(--bg); color:var(--text); border:1px solid var(--border);">
                                     <i class="fas fa-warehouse me-1" style="color:var(--primary);"></i>{{ lot.warehouse }}
                                 </span>
-                                {% else %}&mdash;{% endif %}
+                                {% endif %}
                             </td>
-                            <td>{{ lot.bloc or '&mdash;' }}</td>
-                            <td>{{ lot.rangee or '&mdash;' }}</td>
+                            <td>{{ lot.bloc or '' }}</td>
+                            <td>{{ lot.rangee or '' }}</td>
                             <td><span class="badge" style="background:var(--primary-light); color:var(--primary);">{{ lot.quantite }}</span></td>
                             <td class="d-flex gap-1">
                                 <button type="button" class="btn btn-sm btn-outline-info" style="border-radius:var(--radius-sm);"
@@ -414,9 +419,9 @@
                     <tbody>
                         {% for h in historique %}
                         <tr>
-                            <td>{{ h.date_achat or '&mdash;' }}</td>
+                            <td>{{ h.date_achat or '' }}</td>
                             <td><strong>{{ "%.2f"|format(h.prix) }} &euro;</strong></td>
-                            <td>{{ h.fournisseur or '&mdash;' }}</td>
+                            <td>{{ h.fournisseur or '' }}</td>
                             <td>{{ h.quantite }}</td>
                         </tr>
                         {% endfor %}
