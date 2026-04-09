@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ doc.numero }} — Espace Client</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #0c7b93; --success: #10b981; --danger: #ef4444;
+            --warning: #f59e0b; --text: #1e293b; --text-secondary: #64748b;
+            --bg: #f8fafc; --surface: #ffffff; --border: #e2e8f0;
+            --radius-md: 10px; --radius-lg: 14px;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; }
+        .portal-header {
+            background: linear-gradient(135deg, #0a3d52 0%, #0c7b93 100%);
+            color: white; padding: 24px 40px;
+        }
+        .portal-header h1 { font-size: 1.2rem; font-weight: 700; margin: 0; }
+        .portal-header .subtitle { font-size: 0.82rem; opacity: 0.8; margin-top: 4px; }
+        .content { max-width: 900px; margin: 32px auto; padding: 0 24px; }
+        .card-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+        table th { background: #f1f5f9; padding: 10px 14px; text-align: left; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); }
+        table td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        table tr:last-child td { border-bottom: none; }
+        .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .meta-item { background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; }
+        .meta-item .lbl { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin-bottom: 4px; }
+        .meta-item .val { font-size: 0.92rem; font-weight: 600; }
+        .badge-statut { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
+        .badge-paye { background: #d1fae5; color: #065f46; }
+        .badge-impaye { background: #fee2e2; color: #991b1b; }
+        .badge-partiel { background: #fef3c7; color: #92400e; }
+        .badge-instance { background: #e2e8f0; color: #475569; }
+        footer { text-align: center; padding: 28px; color: var(--text-secondary); font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 40px; }
+    </style>
+</head>
+<body>
+
+<div class="portal-header">
+    <div style="max-width:900px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+            <h1><i class="fas fa-file-alt me-2"></i>{{ doc.type_document }} — {{ doc.numero }}</h1>
+            <div class="subtitle">{{ client.nom }}</div>
+        </div>
+        <a href="{{ url_for('client_portal', token=token) }}?tab=documents"
+           style="color:rgba(255,255,255,0.85); text-decoration:none; font-size:0.84rem; font-weight:600;">
+            <i class="fas fa-arrow-left me-1"></i> Retour aux documents
+        </a>
+    </div>
+</div>
+
+<div class="content">
+
+    <!-- Metadata -->
+    <div class="meta-grid">
+        <div class="meta-item">
+            <div class="lbl">Référence</div>
+            <div class="val" style="color:var(--primary);">{{ doc.numero }}</div>
+        </div>
+        <div class="meta-item">
+            <div class="lbl">Date</div>
+            <div class="val">{{ doc.date_facture or '' }}</div>
+        </div>
+        {% if doc.date_echeance %}
+        <div class="meta-item">
+            <div class="lbl">{% if doc.type_document == 'Bon de livraison' %}Verval datum{% else %}Échéance{% endif %}</div>
+            <div class="val">{{ doc.date_echeance }}</div>
+        </div>
+        {% endif %}
+        {% if doc.statut %}
+        <div class="meta-item">
+            <div class="lbl">Statut</div>
+            <div class="val">
+                {% set s = doc.statut %}
+                <span class="badge-statut {% if s == 'Payé' %}badge-paye{% elif s == 'Impayé' %}badge-impaye{% elif s == 'Partiellement payé' %}badge-partiel{% else %}badge-instance{% endif %}">{{ s }}</span>
+            </div>
+        </div>
+        {% endif %}
+        {% if doc.montant_ttc %}
+        <div class="meta-item">
+            <div class="lbl">Total TTC</div>
+            <div class="val" style="color:var(--primary);">{{ "%.2f"|format(doc.montant_ttc) }} dh</div>
+        </div>
+        {% endif %}
+        {% if doc.objet %}
+        <div class="meta-item">
+            <div class="lbl">Objet</div>
+            <div class="val">{{ doc.objet }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Lines -->
+    <div class="card-box">
+        <h5 style="font-size:0.92rem; font-weight:700; margin-bottom:16px;"><i class="fas fa-list me-2" style="color:var(--primary);"></i>Articles</h5>
+        {% if lignes %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Réf</th>
+                    <th>Désignation</th>
+                    <th>Lot</th>
+                    <th style="text-align:right;">Qté</th>
+                    {% if doc.type_document not in ['Bon de travail'] %}
+                    <th style="text-align:right;">Unitaire</th>
+                    <th style="text-align:right;">Total HT</th>
+                    {% endif %}
+                    {% if doc.type_document == 'Bon de livraison' %}
+                    <th>Verval datum</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for ligne in lignes %}
+                <tr>
+                    <td style="color:var(--text-secondary); font-size:0.8rem;">{{ ligne.reference or '' }}</td>
+                    <td style="font-weight:600;">{{ ligne.designation or '' }}</td>
+                    <td style="font-size:0.8rem; color:var(--text-secondary);">{{ ligne.lot_numero or '' }}</td>
+                    <td style="text-align:right;">{{ ligne.quantite }}</td>
+                    {% if doc.type_document not in ['Bon de travail'] %}
+                    <td style="text-align:right;">{{ "%.2f"|format(ligne.prix_unitaire) }} dh</td>
+                    <td style="text-align:right; font-weight:700;">{{ "%.2f"|format(ligne.montant_ht) }} dh</td>
+                    {% endif %}
+                    {% if doc.type_document == 'Bon de livraison' %}
+                    <td style="font-size:0.8rem; color:var(--text-secondary);">{{ ligne.lot_date_expiration or '' }}</td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="text-align:center; color:var(--text-secondary); padding:24px 0;">Aucun article.</p>
+        {% endif %}
+    </div>
+
+    <!-- Totaux -->
+    {% if doc.montant_ht %}
+    <div style="display:flex; justify-content:flex-end; margin-bottom:24px;">
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px 28px; min-width:280px; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+            <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:0.86rem;">
+                <span style="color:var(--text-secondary);">Montant HT</span>
+                <span>{{ "%.2f"|format(doc.montant_ht) }} dh</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:0.86rem;">
+                <span style="color:var(--text-secondary);">TVA</span>
+                <span>{{ "%.2f"|format(doc.montant_tva or 0) }} dh</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:10px 0 4px; font-size:1rem; font-weight:800; border-top:2px solid var(--border); margin-top:6px;">
+                <span>Total TTC</span>
+                <span style="color:var(--primary);">{{ "%.2f"|format(doc.montant_ttc) }} dh</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<footer>
+    MedicaTronic &bull; Espace Client &bull; Lien sécurisé
+</footer>
+
+</body>
+</html>

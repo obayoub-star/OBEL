@@ -11,7 +11,11 @@
       "Bash(git cherry-pick:*)",
       "Bash(python3 -c \"import app; print\\('OK'\\)\")",
       "Bash(git add:*)",
-      "Bash(git commit -m ':*)"
+      "Bash(git commit -m ':*)",
+      "Bash(python -c \"import app\")",
+      "Bash(python3 -c \"import app\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(python -c \"import app; print\\('OK'\\)\")"
     ]
   }
 }

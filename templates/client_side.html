@@ -28,21 +28,33 @@
         {% endfor %}
         {% endwith %}
 
+        <!-- Search bar -->
+        <div class="mb-3 animate-in">
+            <div class="position-relative" style="max-width:360px;">
+                <span class="position-absolute top-50 start-0 translate-middle-y ms-3" style="color:var(--text-tertiary);">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input type="text" id="clientSearch" class="form-control ps-5"
+                       style="border:none; background:var(--surface); box-shadow:var(--shadow-sm); border-radius:var(--radius-full);"
+                       placeholder="Rechercher un client...">
+            </div>
+        </div>
+
         <div class="table-container">
-            <table class="table align-middle mb-0 table-hover">
+            <table class="table align-middle mb-0 table-hover" id="clientTable">
                 <thead>
                     <tr>
                         <th class="ps-4">Client</th>
                         <th>Ville</th>
                         <th>Factures</th>
                         <th>Total facturé</th>
-                        <th>Lien portail</th>
-                        <th class="text-end pe-4">Actions</th>
+                        <th>Portail client</th>
+                        <th class="text-end pe-4">Lien</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for cl in clients %}
-                    <tr>
+                    <tr data-nom="{{ cl.nom | lower }}">
                         <td class="ps-4">
                             <a href="{{ url_for('client_detail', id=cl.id) }}" class="fw-bold text-decoration-none" style="color:var(--primary);">{{ cl.nom }}</a>
                             {% if cl.code_client %}<small class="d-block" style="color:var(--text-tertiary); font-size:0.72rem;">{{ cl.code_client }}</small>{% endif %}
@@ -55,11 +67,11 @@
                             <div class="d-flex align-items-center gap-2">
                                 <span class="badge bg-success" style="font-size:0.68rem;"><i class="fas fa-check me-1"></i>Actif</span>
                                 <a href="{{ url_for('client_portal', token=cl.portal_token) }}" target="_blank"
-                                   class="btn btn-sm btn-outline-success py-0 px-2" style="border-radius:var(--radius-sm); font-size:0.76rem;">
-                                    <i class="fas fa-external-link-alt me-1"></i>Ouvrir
+                                   class="btn btn-sm btn-outline-success py-0 px-2" style="border-radius:var(--radius-sm); font-size:0.76rem;" title="Ouvrir le portail">
+                                    <i class="fas fa-external-link-alt"></i>
                                 </a>
-                                <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="border-radius:var(--radius-sm); font-size:0.76rem;"
-                                        onclick="copyLink('{{ request.url_root.rstrip('/') }}{{ url_for('client_portal', token=cl.portal_token) }}')">
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="border-radius:var(--radius-sm); font-size:0.76rem;" title="Copier le lien"
+                                        onclick="copyLink('{{ request.url_root.rstrip('/') }}{{ url_for('client_portal', token=cl.portal_token) }}', this)">
                                     <i class="fas fa-copy"></i>
                                 </button>
                             </div>
@@ -70,8 +82,8 @@
                         <td class="text-end pe-4">
                             <form action="{{ url_for('generate_portal_token', id=cl.id) }}" method="POST" class="d-inline">
                                 <button type="submit" class="btn btn-sm {% if cl.portal_token %}btn-outline-warning{% else %}btn-outline-info{% endif %}" style="border-radius:var(--radius-sm); font-size:0.78rem;"
-                                        onclick="return confirm('{% if cl.portal_token %}Renouveler le lien pour {{ cl.nom }} ?{% else %}Créer un lien portail pour {{ cl.nom }} ?{% endif %}')">
-                                    <i class="fas fa-{% if cl.portal_token %}refresh{% else %}link{% endif %} me-1"></i>
+                                        onclick="return confirmAction('{% if cl.portal_token %}Renouveler{% else %}Créer{% endif %} le lien portail pour <strong>{{ cl.nom }}</strong> ?')">
+                                    <i class="fas fa-{% if cl.portal_token %}redo{% else %}link{% endif %} me-1"></i>
                                     {% if cl.portal_token %}Renouveler{% else %}Créer lien{% endif %}
                                 </button>
                             </form>
@@ -95,13 +107,60 @@
     </div>
 </div>
 
+<!-- Confirm modal (nicer than browser confirm) -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content" style="border-radius:var(--radius-lg); border:1px solid var(--border-light); overflow:hidden;">
+            <div class="modal-header" style="background:var(--sidebar-bg); border:none; padding:20px 24px;">
+                <i class="fas fa-exclamation-circle me-2" style="color:#f59e0b; font-size:1.1rem;"></i>
+                <h6 class="modal-title text-white mb-0 fw-bold">Confirmation</h6>
+            </div>
+            <div class="modal-body" style="padding:20px 24px;">
+                <p id="confirmMsg" class="mb-0" style="font-size:0.9rem;"></p>
+            </div>
+            <div class="modal-footer" style="border:none; padding:12px 24px 20px; gap:8px;">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-4" style="border-radius:var(--radius-sm);" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-info text-white btn-sm px-4 fw-bold" style="border-radius:var(--radius-sm);" id="confirmOk">Confirmer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-function copyLink(url) {
+// Search filter
+document.getElementById('clientSearch').addEventListener('input', function() {
+    var q = this.value.toLowerCase().trim();
+    document.querySelectorAll('#clientTable tbody tr[data-nom]').forEach(function(row) {
+        row.style.display = (!q || row.dataset.nom.includes(q)) ? '' : 'none';
+    });
+});
+
+// Copy link with feedback
+function copyLink(url, btn) {
     navigator.clipboard.writeText(url).then(function() {
-        alert('Lien copié :\n' + url);
+        var orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        btn.classList.replace('btn-outline-secondary', 'btn-outline-success');
+        setTimeout(function() {
+            btn.innerHTML = orig;
+            btn.classList.replace('btn-outline-success', 'btn-outline-secondary');
+        }, 1500);
     });
 }
+
+// Nicer confirm modal
+var _pendingForm = null;
+function confirmAction(msg) {
+    document.getElementById('confirmMsg').innerHTML = msg;
+    _pendingForm = event.currentTarget.closest('form');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmModal')).show();
+    return false;
+}
+document.getElementById('confirmOk').addEventListener('click', function() {
+    bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+    if (_pendingForm) _pendingForm.submit();
+});
 </script>
 </body>
 </html>

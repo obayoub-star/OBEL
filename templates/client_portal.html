@@ -134,9 +134,14 @@
             <tbody>
                 {% for f in factures %}
                 <tr>
-                    <td><strong style="color:var(--primary);">{{ f.numero }}</strong></td>
-                    <td>{{ f.date_facture or '—' }}</td>
-                    <td>{{ f.date_echeance or '—' }}</td>
+                    <td>
+                        <a href="{{ url_for('portal_doc_detail', token=token, doc_id=f.id) }}"
+                           style="color:var(--primary); font-weight:700; text-decoration:none;">
+                            {{ f.numero }}
+                        </a>
+                    </td>
+                    <td>{{ f.date_facture or '' }}</td>
+                    <td>{{ f.date_echeance or '' }}</td>
                     <td>{{ "%.2f"|format(f.montant_ht or 0) }} dh</td>
                     <td><strong>{{ "%.2f"|format(f.montant_ttc or 0) }} dh</strong></td>
                     <td>
@@ -161,6 +166,7 @@
                 <tr>
                     <th>Référence</th>
                     <th>Date</th>
+                    <th>Verval datum</th>
                     <th>Montant TTC</th>
                     <th>Statut</th>
                 </tr>
@@ -168,8 +174,14 @@
             <tbody>
                 {% for bl in bons_livraison %}
                 <tr>
-                    <td><strong style="color:var(--primary);">{{ bl.numero }}</strong></td>
-                    <td>{{ bl.date_facture or '—' }}</td>
+                    <td>
+                        <a href="{{ url_for('portal_doc_detail', token=token, doc_id=bl.id) }}"
+                           style="color:var(--primary); font-weight:700; text-decoration:none;">
+                            {{ bl.numero }}
+                        </a>
+                    </td>
+                    <td>{{ bl.date_facture or '' }}</td>
+                    <td>{{ bl.date_echeance or '' }}</td>
                     <td><strong>{{ "%.2f"|format(bl.montant_ttc or 0) }} dh</strong></td>
                     <td>
                         {% set s = bl.statut or 'En instance' %}
@@ -204,7 +216,12 @@
             <tbody>
                 {% for gl in grand_livre %}
                 <tr>
-                    <td><strong style="color:var(--primary);">{{ gl.numero }}</strong></td>
+                    <td>
+                        <a href="{{ url_for('portal_doc_detail', token=token, doc_id=gl.id) }}"
+                           style="color:var(--primary); font-weight:700; text-decoration:none;">
+                            {{ gl.numero }}
+                        </a>
+                    </td>
                     <td>{{ gl.date_facture or '—' }}</td>
                     <td>{{ gl.type_document }}</td>
                     <td>

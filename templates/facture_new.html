@@ -73,11 +73,25 @@
                         </div>
                     </div>
 
-                    {% if td in ['Facture', 'Avoir'] %}
-                    <!-- Ech&eacute;ance (Facture, Avoir) -->
+                    {% if td in ['Facture', 'Avoir', 'Bon de livraison'] %}
+                    <!-- Ech&eacute;ance / Verval datum -->
                     <div class="col-md-6">
-                        <label class="form-label fw-bold">Date d'&eacute;ch&eacute;ance</label>
+                        <label class="form-label fw-bold">{% if td == 'Bon de livraison' %}Verval datum{% else %}Date d'&eacute;ch&eacute;ance{% endif %}</label>
                         <input type="date" name="date_echeance" class="form-control" value="{{ today }}">
+                    </div>
+                    {% endif %}
+
+                    {% if td == 'Avoir' %}
+                    <!-- Facture li&eacute;e (obligatoire pour Avoir) -->
+                    <div class="col-12">
+                        <label class="form-label fw-bold" style="color:var(--danger);">Facture li&eacute;e *</label>
+                        <select name="parent_facture_id" id="parentFactureId" class="form-select" required>
+                            <option value="">-- S&eacute;lectionner une facture --</option>
+                            {% for f in factures_list %}
+                            <option value="{{ f.id }}">{{ f.numero }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted" style="font-size:0.76rem;"><i class="fas fa-info-circle me-1"></i>Un avoir doit &ecirc;tre li&eacute; &agrave; une facture existante.</small>
                     </div>
                     {% endif %}
 
@@ -173,6 +187,13 @@ document.querySelector('form').addEventListener('submit', function(e) {
         e.preventDefault();
         clientSearch.setCustomValidity('Veuillez s\u00e9lectionner un client dans la liste.');
         clientSearch.reportValidity();
+        return;
+    }
+    var parentSel = document.getElementById('parentFactureId');
+    if (parentSel && !parentSel.value) {
+        e.preventDefault();
+        parentSel.setCustomValidity('Veuillez s\u00e9lectionner une facture li\u00e9e.');
+        parentSel.reportValidity();
     }
 });
 </script>

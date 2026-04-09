@@ -137,18 +137,22 @@
 
 <!-- Print bar (screen only) -->
 <div class="print-bar no-print">
-    <a href="{{ url_for('edit_facture', id=facture.id) }}">
-        <i class="fas fa-arrow-left me-1"></i> Retour
-    </a>
     <span style="font-family:'Outfit',sans-serif; font-weight:700;">{{ facture.numero }}</span>
-    <button onclick="window.print()" class="print-btn">
-        <i class="fas fa-print me-2"></i> Imprimer / PDF
-    </button>
+    <div style="display:flex; gap:12px; align-items:center;">
+        <button onclick="window.print()" class="print-btn">
+            <i class="fas fa-print me-2"></i> Imprimer / PDF
+        </button>
+        <a href="{{ url_for('edit_facture', id=facture.id) }}" style="color:#0C7B93; text-decoration:none; font-size:0.85rem; font-weight:600;">
+            <i class="fas fa-arrow-left me-1"></i> Retour
+        </a>
+    </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" class="no-print">
 
 {% set doc_type = facture.type_document or 'Facture' %}
 {% set is_bt = doc_type == 'Bon de travail' %}
+{% set is_bl = doc_type == 'Bon de livraison' %}
+{% set is_devis = doc_type == 'Devis' %}
 {% set doc_titles = {'Facture':'FACTURE','Devis':'DEVIS','Bon de travail':'BON DE TRAVAIL','Bon de livraison':'BON DE LIVRAISON','Avoir':'AVOIR'} %}
 
 <div class="page">
@@ -167,7 +171,7 @@
             </div>
             {% if not is_bt %}
             <div class="meta-row">
-                <span style="color:#9CAABB; font-size:8pt;">&Eacute;ch&eacute;ance :</span>
+                <span style="color:#9CAABB; font-size:8pt;">{% if is_bl %}Verval datum :{% else %}&Eacute;ch&eacute;ance :{% endif %}</span>
                 <strong>{{ facture.date_echeance or '' }}</strong>
             </div>
             {% endif %}
@@ -242,10 +246,12 @@
                 <th>Rayonnage</th>
                 <th>P&eacute;remption</th>
                 {% else %}
+                {% if not is_devis %}<th>Lot</th>{% endif %}
                 <th class="num">Qt&eacute;</th>
                 <th class="num">Unitaire</th>
                 <th class="num">TVA</th>
                 <th class="num">Total</th>
+                {% if is_bl %}<th>Verval datum</th>{% endif %}
                 {% endif %}
             </tr>
         </thead>
@@ -257,13 +263,21 @@
                 {% if is_bt %}
                 <td>{{ ligne.lot_numero or '' }}</td>
                 <td class="num">{{ ligne.quantite }}</td>
-                <td>{% if ligne.lot_warehouse or ligne.lot_rangee %}{{ ligne.lot_warehouse or '' }}{% if ligne.lot_rangee %} / {{ ligne.lot_rangee }}{% endif %}{% endif %}</td>
+                <td>
+                    {%- set rparts = [] -%}
+                    {%- if ligne.lot_warehouse %}{% set _ = rparts.append(ligne.lot_warehouse) %}{% endif -%}
+                    {%- if ligne.lot_rangee %}{% set _ = rparts.append(ligne.lot_rangee) %}{% endif -%}
+                    {%- if ligne.lot_etage %}{% set _ = rparts.append('Ét.' ~ ligne.lot_etage) %}{% endif -%}
+                    {{ rparts | join(' / ') }}
+                </td>
                 <td>{{ ligne.lot_date_expiration or '' }}</td>
                 {% else %}
+                {% if not is_devis %}<td>{{ ligne.lot_numero or '' }}</td>{% endif %}
                 <td class="num">{{ ligne.quantite }}</td>
                 <td class="num">{{ "%.2f"|format(ligne.prix_unitaire) }}</td>
                 <td class="num">{{ "%.0f"|format(ligne.tva) }}%</td>
                 <td class="num" style="font-weight:700;">{{ "%.2f"|format(ligne.montant_ht) }}</td>
+                {% if is_bl %}<td>{{ ligne.lot_date_expiration or '' }}</td>{% endif %}
                 {% endif %}
             </tr>
             {% else %}

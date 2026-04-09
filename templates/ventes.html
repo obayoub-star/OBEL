@@ -203,7 +203,7 @@
         <!-- Invoice table -->
         <div class="table-container">
             {% macro sort_icon(col) %}{% if sort_col == col %}{% if sort_dir == 'asc' %}<i class="fas fa-sort-up ms-1 small"></i>{% else %}<i class="fas fa-sort-down ms-1 small"></i>{% endif %}{% else %}<i class="fas fa-sort ms-1 small" style="opacity:0.4;"></i>{% endif %}{% endmacro %}
-            {% macro sort_url(col) %}{{ url_for('ventes', type_doc=td, search=search_query, statut=statut_filtre, sort=col, dir='asc' if (sort_col == col and sort_dir == 'desc') else ('desc' if sort_col == col else 'asc')) }}{% endmacro %}
+            {% macro sort_url(col) %}{{ url_for('ventes', type_doc=td, search=search_query, statut=statut_filtre, sort=col, dir='asc' if (sort_col == col and sort_dir == 'desc') else 'desc') }}{% endmacro %}
             <table class="table align-middle mb-0 table-hover" id="ventesTable">
                 <thead>
                     <tr>

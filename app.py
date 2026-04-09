@@ -62,6 +62,7 @@ def migrate_db():
         ('factures', 'parent_id',           'INTEGER'),
         ('produits', 'etage',               'TEXT'),
         ('clients',  'portal_token',        'TEXT'),
+        ('lots',     'etage',               'TEXT'),
     ]
     # Create packets tables if they don't exist
     conn.execute('''
@@ -152,16 +153,16 @@ DOC_PREFIXES = {
 }
 
 def generate_numero_document(conn, type_document='Facture'):
-    """Generate document number like F2026-04-000001, D2026-04-000001, etc."""
+    """Generate document number like F2026-04-1, D2026-04-1, etc."""
     today  = datetime.date.today()
     code   = DOC_PREFIXES.get(type_document, 'F')
     prefix = f"{code}{today.year}-{today.month:02d}-"
     last   = conn.execute(
-        "SELECT numero FROM factures WHERE numero LIKE ? ORDER BY numero DESC LIMIT 1",
+        "SELECT numero FROM factures WHERE numero LIKE ? ORDER BY id DESC LIMIT 1",
         (f"{prefix}%",)
     ).fetchone()
     seq = int(last['numero'].rsplit('-', 1)[-1]) + 1 if last else 1
-    return f"{prefix}{seq:06d}"
+    return f"{prefix}{seq}"
 
 
 def generate_numero_facture(conn):
@@ -1479,6 +1480,18 @@ def new_facture(type_doc=None):
     if type_document not in DOC_PREFIXES:
         type_document = 'Facture'
     if request.method == 'POST':
+        # Avoir requires a linked facture
+        if type_document == 'Avoir':
+            parent_id = request.form.get('parent_facture_id') or None
+            if not parent_id:
+                flash("Vous devez sélectionner une facture à lier à l'avoir.", 'danger')
+                clients = conn.execute('SELECT * FROM clients WHERE (est_fournisseur IS NULL OR est_fournisseur = 0) ORDER BY nom').fetchall()
+                factures_list = conn.execute("SELECT id, numero FROM factures WHERE type_document='Facture' ORDER BY id DESC").fetchall()
+                conn.close()
+                return render_template('facture_new.html', clients=clients, today=today,
+                                       type_document=type_document, factures_list=factures_list)
+        else:
+            parent_id = None
         numero    = generate_numero_document(conn, type_document)
         client_id = request.form.get('client_id') or None
         conn.execute('''
@@ -1486,8 +1499,8 @@ def new_facture(type_doc=None):
                 (numero, client_id, date_facture, date_echeance, devise,
                  emplacement_stock, objet, statut, type_document,
                  client_ref, date_peremption_souhaitee, date_livraison_souhaitee,
-                 montant_ht, remise_globale, montant_tva, ajustement, montant_ttc)
-            VALUES (?,?,?,?,?,?,?,'En instance',?,?,?,?,0,0,0,0,0)
+                 parent_id, montant_ht, remise_globale, montant_tva, ajustement, montant_ttc)
+            VALUES (?,?,?,?,?,?,?,'En instance',?,?,?,?,?,0,0,0,0,0)
         ''', (numero, client_id, today,
               request.form.get('date_echeance') or today,
               request.form.get('devise', 'MAD'),
@@ -1497,14 +1510,47 @@ def new_facture(type_doc=None):
               _f(request.form.get('client_ref', '')),
               _f(request.form.get('date_peremption_souhaitee', '')),
               _f(request.form.get('date_livraison_souhaitee', '')),
+              parent_id,
               ))
         conn.commit()
         fid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
         conn.close()
         return redirect(url_for('edit_facture', id=fid))
     clients = conn.execute('SELECT * FROM clients WHERE (est_fournisseur IS NULL OR est_fournisseur = 0) ORDER BY nom').fetchall()
+    factures_list = conn.execute("SELECT id, numero FROM factures WHERE type_document='Facture' ORDER BY id DESC").fetchall() if type_document == 'Avoir' else []
     conn.close()
-    return render_template('facture_new.html', clients=clients, today=today, type_document=type_document)
+    return render_template('facture_new.html', clients=clients, today=today,
+                           type_document=type_document, factures_list=factures_list)
+
+
+def _get_linked_chain(conn, doc_id):
+    """Return all documents in the same conversion chain, excluding doc_id itself."""
+    # Walk to root
+    current = doc_id
+    visited = {doc_id}
+    while True:
+        row = conn.execute('SELECT parent_id FROM factures WHERE id=?', (current,)).fetchone()
+        if not row or not row['parent_id'] or row['parent_id'] in visited:
+            root = current
+            break
+        visited.add(row['parent_id'])
+        current = row['parent_id']
+    # BFS from root collecting all docs except self
+    result = []
+    queue = [root]
+    seen = set()
+    while queue:
+        cid = queue.pop(0)
+        if cid in seen:
+            continue
+        seen.add(cid)
+        if cid != doc_id:
+            row = conn.execute('SELECT id, numero, type_document FROM factures WHERE id=?', (cid,)).fetchone()
+            if row:
+                result.append(row)
+        for child in conn.execute('SELECT id FROM factures WHERE parent_id=?', (cid,)).fetchall():
+            queue.append(child['id'])
+    return result
 
 
 # ─── VENTES : ÉDITER FACTURE ──────────────────────────────────────────────────
@@ -1524,8 +1570,9 @@ def edit_facture(id):
         return redirect(url_for('ventes'))
     lignes   = conn.execute('''
         SELECT fl.*, p.nom AS produit_nom, p.reference AS produit_ref,
+               p.prix_tarif_1, p.prix_tarif_2, p.prix_tarif_3,
                l.lot_numero, l.warehouse AS lot_warehouse, l.rangee AS lot_rangee,
-               l.date_expiration AS lot_date_expiration
+               l.etage AS lot_etage, l.date_expiration AS lot_date_expiration
         FROM facture_lignes fl
         LEFT JOIN produits p ON fl.produit_id = p.id
         LEFT JOIN lots     l ON fl.lot_id     = l.id
@@ -1537,14 +1584,8 @@ def edit_facture(id):
                COALESCE((SELECT SUM(l.quantite) FROM lots l WHERE l.produit_id=p.id),0) AS stock_total
         FROM produits p ORDER BY p.nom
     ''').fetchall()
-    # Linked documents (parent + children)
-    linked_docs = []
-    if facture['parent_id']:
-        parent = conn.execute('SELECT id, numero, type_document FROM factures WHERE id=?', (facture['parent_id'],)).fetchone()
-        if parent:
-            linked_docs.append(parent)
-    children = conn.execute('SELECT id, numero, type_document FROM factures WHERE parent_id=? ORDER BY id', (id,)).fetchall()
-    linked_docs.extend(children)
+    # Linked documents — traverse entire chain
+    linked_docs = _get_linked_chain(conn, id)
     conn.close()
     return render_template('facture_edit.html',
                            facture=facture, lignes=lignes,
@@ -1606,38 +1647,6 @@ def update_facture_statut(id):
             conn.close()
             return redirect(url_for('edit_facture', id=id))
     conn.execute('UPDATE factures SET statut=? WHERE id=?', (new_statut, id))
-    # Deduct stock when marking as Payé (only once, not if already Payé)
-    if new_statut == 'Payé' and old_statut != 'Payé':
-        lignes = conn.execute(
-            'SELECT produit_id, lot_id, quantite FROM facture_lignes WHERE facture_id=?',
-            (id,)
-        ).fetchall()
-        for ligne in lignes:
-            if ligne['lot_id']:
-                # Deduct from the specific selected lot
-                conn.execute(
-                    'UPDATE lots SET quantite = MAX(0, quantite - ?) WHERE id=?',
-                    (ligne['quantite'], ligne['lot_id'])
-                )
-            elif ligne['produit_id']:
-                # No lot selected → FIFO: deduct from earliest-expiring lots
-                remaining = float(ligne['quantite'])
-                lots_fifo = conn.execute(
-                    '''SELECT id, quantite FROM lots
-                       WHERE produit_id=? AND quantite>0
-                       ORDER BY CASE WHEN date_expiration IS NULL OR date_expiration='' THEN 1 ELSE 0 END,
-                                date_expiration ASC, id ASC''',
-                    (ligne['produit_id'],)
-                ).fetchall()
-                for lot in lots_fifo:
-                    if remaining <= 0:
-                        break
-                    deduct = min(float(lot['quantite']), remaining)
-                    conn.execute(
-                        'UPDATE lots SET quantite = MAX(0, quantite - ?) WHERE id=?',
-                        (deduct, lot['id'])
-                    )
-                    remaining -= deduct
     conn.commit()
     conn.close()
     return redirect(url_for('edit_facture', id=id))
@@ -1673,30 +1682,32 @@ def add_facture_ligne(id):
     ''', (id, produit_id, lot_id, reference, designation,
           quantite, prix, tva, remise, montant_ht))
     recalculate_facture(conn, id)
-    # Live stock deduction when adding a line to a facture
-    if lot_id:
-        conn.execute(
-            'UPDATE lots SET quantite = MAX(0, quantite - ?) WHERE id=?',
-            (quantite, lot_id)
-        )
-    elif produit_id:
-        remaining = quantite
-        lots_fifo = conn.execute(
-            '''SELECT id, quantite FROM lots
-               WHERE produit_id=? AND quantite>0
-               ORDER BY CASE WHEN date_expiration IS NULL OR date_expiration='' THEN 1 ELSE 0 END,
-                        date_expiration ASC, id ASC''',
-            (produit_id,)
-        ).fetchall()
-        for lot in lots_fifo:
-            if remaining <= 0:
-                break
-            deduct = min(float(lot['quantite']), remaining)
+    # Stock deduction ONLY for Bon de travail
+    doc = conn.execute('SELECT type_document FROM factures WHERE id=?', (id,)).fetchone()
+    if doc and doc['type_document'] == 'Bon de travail':
+        if lot_id:
             conn.execute(
                 'UPDATE lots SET quantite = MAX(0, quantite - ?) WHERE id=?',
-                (deduct, lot['id'])
+                (quantite, lot_id)
             )
-            remaining -= deduct
+        elif produit_id:
+            remaining = quantite
+            lots_fifo = conn.execute(
+                '''SELECT id, quantite FROM lots
+                   WHERE produit_id=? AND quantite>0
+                   ORDER BY CASE WHEN date_expiration IS NULL OR date_expiration='' THEN 1 ELSE 0 END,
+                            date_expiration ASC, id ASC''',
+                (produit_id,)
+            ).fetchall()
+            for lot in lots_fifo:
+                if remaining <= 0:
+                    break
+                deduct = min(float(lot['quantite']), remaining)
+                conn.execute(
+                    'UPDATE lots SET quantite = MAX(0, quantite - ?) WHERE id=?',
+                    (deduct, lot['id'])
+                )
+                remaining -= deduct
     conn.commit()
     conn.close()
     return redirect(url_for('edit_facture', id=id))
@@ -1708,14 +1719,14 @@ def add_facture_ligne(id):
 def delete_facture_ligne(fid, lid):
     conn  = get_db_connection()
     ligne = conn.execute('SELECT lot_id, produit_id, quantite FROM facture_lignes WHERE id=? AND facture_id=?', (lid, fid)).fetchone()
+    doc   = conn.execute('SELECT type_document FROM factures WHERE id=?', (fid,)).fetchone()
     conn.execute('DELETE FROM facture_lignes WHERE id=? AND facture_id=?', (lid, fid))
     recalculate_facture(conn, fid)
-    # Restore stock when a line is deleted
-    if ligne:
+    # Restore stock ONLY for Bon de travail
+    if ligne and doc and doc['type_document'] == 'Bon de travail':
         if ligne['lot_id']:
             conn.execute('UPDATE lots SET quantite = quantite + ? WHERE id=?', (ligne['quantite'], ligne['lot_id']))
         elif ligne['produit_id']:
-            # Put back to first lot of product (FIFO reverse)
             first_lot = conn.execute(
                 '''SELECT id FROM lots WHERE produit_id=?
                    ORDER BY CASE WHEN date_expiration IS NULL OR date_expiration='' THEN 1 ELSE 0 END,
@@ -1936,7 +1947,8 @@ def print_facture(id):
         return redirect(url_for('ventes'))
     lignes = conn.execute('''
         SELECT fl.*, l.lot_numero, l.warehouse AS lot_warehouse,
-               l.rangee AS lot_rangee, l.date_expiration AS lot_date_expiration
+               l.rangee AS lot_rangee, l.etage AS lot_etage,
+               l.date_expiration AS lot_date_expiration
         FROM facture_lignes fl
         LEFT JOIN lots l ON fl.lot_id = l.id
         WHERE fl.facture_id=? ORDER BY fl.id
@@ -2025,7 +2037,8 @@ def generate_portal_token(id):
     conn.execute('UPDATE clients SET portal_token=? WHERE id=?', (token, id))
     conn.commit()
     conn.close()
-    return redirect(url_for('client_detail', id=id))
+    flash("Lien portail généré avec succès.", 'success')
+    return redirect(url_for('client_side'))
 
 
 @app.route('/portal/<token>')
@@ -2081,6 +2094,33 @@ def client_portal(token):
                            total_factures=total_factures,
                            total_avoirs=total_avoirs,
                            solde=solde)
+
+
+@app.route('/portal/<token>/doc/<int:doc_id>')
+def portal_doc_detail(token, doc_id):
+    """Public portal — document detail view via token."""
+    conn   = get_db_connection()
+    client = conn.execute('SELECT * FROM clients WHERE portal_token=?', (token,)).fetchone()
+    if not client:
+        conn.close()
+        return render_template('portal_error.html'), 404
+    doc = conn.execute('''
+        SELECT f.*, cl.nom AS client_nom
+        FROM factures f LEFT JOIN clients cl ON f.client_id = cl.id
+        WHERE f.id=? AND f.client_id=?
+    ''', (doc_id, client['id'])).fetchone()
+    if not doc:
+        conn.close()
+        return render_template('portal_error.html'), 404
+    lignes = conn.execute('''
+        SELECT fl.*, l.lot_numero, l.date_expiration AS lot_date_expiration
+        FROM facture_lignes fl
+        LEFT JOIN lots l ON fl.lot_id = l.id
+        WHERE fl.facture_id=? ORDER BY fl.id
+    ''', (doc_id,)).fetchall()
+    conn.close()
+    return render_template('portal_doc_detail.html',
+                           client=client, token=token, doc=doc, lignes=lignes)
 
 
 if __name__ == '__main__':

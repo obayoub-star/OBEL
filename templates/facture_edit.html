@@ -256,7 +256,7 @@
                             </div>
                             {% if not is_bt %}
                             <div class="col-6">
-                                <span style="color:var(--text-tertiary); font-size:0.72rem;">&Eacute;ch&eacute;ance</span>
+                                <span style="color:var(--text-tertiary); font-size:0.72rem;">&Eacute;ch&eacute;ance / Verval datum</span>
                                 <div style="font-weight:600; font-size:0.88rem;">{{ facture.date_echeance or '' }}</div>
                             </div>
                             <div class="col-6">
@@ -293,7 +293,8 @@
 
             <hr style="border-color:var(--border-light);">
 
-            <!-- Add article section -->
+            <!-- Add article section (hidden for Avoir) -->
+            {% if not is_avoir %}
             <div class="add-article-section animate-in animate-in-delay-1" onclick="toggleAddForm()">
                 <i class="fas fa-plus-circle"></i> Ajouter un article
                 <i class="fas fa-chevron-down ms-auto small" id="addFormChevron"></i>
@@ -327,13 +328,17 @@
                             <input type="text" name="designation" id="articleDesig" class="form-control form-control-sm"
                                    placeholder="USP...">
                         </div>
-                        <!-- Lot (all types) -->
+                        <!-- Lot (not for Devis) -->
+                        {% if doc_type != 'Devis' %}
                         <div class="col-md-2">
                             <label class="form-label">Lot</label>
                             <select name="lot_id" id="lotSelect" class="form-select form-select-sm">
                                 <option value="">--</option>
                             </select>
                         </div>
+                        {% else %}
+                        <input type="hidden" name="lot_id" id="lotSelect" value="">
+                        {% endif %}
                         <!-- Qt&eacute; (all types) -->
                         <div class="col-md-1">
                             <label class="form-label">Qt&eacute;</label>
@@ -377,6 +382,7 @@
                     </div>
                 </form>
             </div>
+            {% endif %}{# end not is_avoir #}
 
             <!-- Invoice lines -->
             {% if lignes %}
@@ -394,12 +400,12 @@
                             <th>Rayonnage</th>
                             <th>P&eacute;remption</th>
                             {% else %}
-                            <th>Lot</th>
+                            {% if doc_type != 'Devis' %}<th>Lot</th>{% endif %}
                             <th>Qt&eacute;</th>
                             <th>Unitaire</th>
                             <th>TVA</th>
                             <th>Total</th>
-                            {% if doc_type == 'Facture' %}<th>Verval datum</th>{% endif %}
+                            {% if doc_type in ['Facture', 'Bon de livraison'] %}<th>Verval datum</th>{% endif %}
                             {% endif %}
                             <th style="width:50px;"></th>
                         </tr>
@@ -419,18 +425,20 @@
                             <td style="font-size:0.82rem;">{{ ligne.lot_numero or '' }}</td>
                             <td>{{ ligne.quantite }}</td>
                             <td style="font-size:0.82rem; color:var(--text-secondary);">
-                                {% if ligne.lot_warehouse or ligne.lot_rangee %}
-                                {{ ligne.lot_warehouse or '' }}{% if ligne.lot_rangee %} / {{ ligne.lot_rangee }}{% endif %}
-                                {% endif %}
+                                {% set ray_parts = [] %}
+                                {% if ligne.lot_warehouse %}{% set _ = ray_parts.append(ligne.lot_warehouse) %}{% endif %}
+                                {% if ligne.lot_rangee %}{% set _ = ray_parts.append(ligne.lot_rangee) %}{% endif %}
+                                {% if ligne.lot_etage %}{% set _ = ray_parts.append('Ét.' ~ ligne.lot_etage) %}{% endif %}
+                                {{ ray_parts | join(' / ') }}
                             </td>
                             <td style="font-size:0.82rem; color:var(--text-secondary);">{{ ligne.lot_date_expiration or '' }}</td>
                             {% else %}
-                            <td style="font-size:0.82rem; color:var(--text-secondary);">{{ ligne.lot_numero or '' }}</td>
+                            {% if doc_type != 'Devis' %}<td style="font-size:0.82rem; color:var(--text-secondary);">{{ ligne.lot_numero or '' }}</td>{% endif %}
                             <td>{{ ligne.quantite }}</td>
                             <td>{{ "%.2f"|format(ligne.prix_unitaire) }}</td>
                             <td>{{ "%.0f"|format(ligne.tva) }}%</td>
                             <td style="font-weight:700;">{{ "%.2f"|format(ligne.montant_ht) }}</td>
-                            {% if doc_type == 'Facture' %}
+                            {% if doc_type in ['Facture', 'Bon de livraison'] %}
                             <td style="font-size:0.82rem; color:var(--text-secondary);">{{ ligne.lot_date_expiration or '' }}</td>
                             {% endif %}
                             {% endif %}
@@ -440,7 +448,10 @@
                                         data-qty="{{ ligne.quantite }}"
                                         data-prix="{{ ligne.prix_unitaire }}"
                                         data-tva="{{ ligne.tva }}"
-                                        data-desig="{{ ligne.designation | e }}">
+                                        data-desig="{{ ligne.designation | e }}"
+                                        data-t1="{{ ligne.prix_tarif_1 or 0 }}"
+                                        data-t2="{{ ligne.prix_tarif_2 or 0 }}"
+                                        data-t3="{{ ligne.prix_tarif_3 or 0 }}">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <form action="{{ url_for('delete_facture_ligne', fid=facture.id, lid=ligne.id) }}"
@@ -692,6 +703,22 @@
                             <label class="form-label fw-bold">Prix unitaire</label>
                             <input type="number" name="prix_unitaire" id="editLignePrix" class="form-control" step="0.01"{% if session.get('role') != 'admin' %} readonly style="background:var(--bg);"{% endif %}>
                         </div>
+                        {% if session.get('role') == 'admin' %}
+                        <div class="col-12" id="tarifBtns" style="display:none;">
+                            <label class="form-label fw-bold" style="font-size:0.8rem; color:var(--text-tertiary);">Choisir un tarif</label>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary flex-fill" onclick="applyTarif('t1')" style="border-radius:var(--radius-sm);">
+                                    T1 <span id="t1Val" class="fw-bold ms-1"></span>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-success flex-fill" onclick="applyTarif('t2')" style="border-radius:var(--radius-sm);">
+                                    T2 <span id="t2Val" class="fw-bold ms-1"></span>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-warning flex-fill" onclick="applyTarif('t3')" style="border-radius:var(--radius-sm);">
+                                    T3 <span id="t3Val" class="fw-bold ms-1"></span>
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
                         <div class="col-12">
                             <label class="form-label fw-bold">Description</label>
                             <input type="text" name="designation" id="editLigneDesig" class="form-control">
@@ -795,6 +822,7 @@ function lookupByRef(ref) {
 
 function fillLots(lots) {
     var lotSel = document.getElementById('lotSelect');
+    if (!lotSel || lotSel.tagName === 'INPUT') return; // hidden for Devis
     lotSel.innerHTML = '<option value="">--</option>';
     lots.forEach(function(l) {
         var o = document.createElement('option');
@@ -802,6 +830,10 @@ function fillLots(lots) {
         o.text  = l.lot_numero + ' (' + l.quantite + ' — ' + (l.warehouse || '?') + ')';
         lotSel.appendChild(o);
     });
+    // Auto-select first lot if available
+    if (lots.length > 0) {
+        lotSel.value = lots[0].id;
+    }
 }
 
 function calcMontant() {
@@ -825,20 +857,41 @@ function resetForm() {
     suggestEl.style.display = 'none';
 }
 
+var _editTarifs = {t1: 0, t2: 0, t3: 0};
 document.querySelectorAll('.edit-ligne-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
         var lid   = this.dataset.lid;
         var qty   = this.dataset.qty;
         var prix  = this.dataset.prix;
-        var tva   = this.dataset.tva;
         var desig = this.dataset.desig || '';
+        var t1    = parseFloat(this.dataset.t1) || 0;
+        var t2    = parseFloat(this.dataset.t2) || 0;
+        var t3    = parseFloat(this.dataset.t3) || 0;
+        _editTarifs = {t1: t1, t2: t2, t3: t3};
         document.getElementById('editLigneForm').action = '/facture/{{ facture.id }}/ligne/' + lid + '/edit';
         document.getElementById('editLigneQty').value   = qty;
         document.getElementById('editLignePrix').value  = prix;
         document.getElementById('editLigneDesig').value = desig;
+        // Show tarif buttons if product has tarifs
+        var btns = document.getElementById('tarifBtns');
+        if (btns) {
+            if (t1 > 0 || t2 > 0 || t3 > 0) {
+                btns.style.display = '';
+                document.getElementById('t1Val').textContent = t1.toFixed(2) + ' dh';
+                document.getElementById('t2Val').textContent = t2.toFixed(2) + ' dh';
+                document.getElementById('t3Val').textContent = t3.toFixed(2) + ' dh';
+            } else {
+                btns.style.display = 'none';
+            }
+        }
         bootstrap.Modal.getOrCreateInstance(document.getElementById('editLigneModal')).show();
     });
 });
+
+function applyTarif(key) {
+    var prix = _editTarifs[key] || 0;
+    document.getElementById('editLignePrix').value = prix.toFixed(2);
+}
 
 function saveAdjust() {
     var remise = document.getElementById('remiseInput').value;
