@@ -333,7 +333,7 @@
                 {% if lots %}
                 <div style="border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border-light);">
                 <table class="table table-sm tab-table mb-0">
-                    <thead><tr><th>N&deg; Lot</th><th>Site</th><th>Production</th><th>Expiration</th><th>Warehouse</th><th>Bloc</th><th>Rang&eacute;e</th><th>Qt&eacute;</th><th>Options</th></tr></thead>
+                    <thead><tr><th>N&deg; Lot</th><th>Site</th><th>Production</th><th>Expiration</th><th>Warehouse</th><th>Bloc</th><th>Rang&eacute;e</th><th>&Eacute;tage</th><th>Qt&eacute;</th><th>Options</th></tr></thead>
                     <tbody>
                         {% for lot in lots %}
                         <tr>
@@ -350,10 +350,11 @@
                             </td>
                             <td>{{ lot.bloc or '' }}</td>
                             <td>{{ lot.rangee or '' }}</td>
+                            <td>{{ lot.etage or '' }}</td>
                             <td><span class="badge" style="background:var(--primary-light); color:var(--primary);">{{ lot.quantite }}</span></td>
                             <td class="d-flex gap-1">
                                 <button type="button" class="btn btn-sm btn-outline-info" style="border-radius:var(--radius-sm);"
-                                        onclick="openEditLot({{ lot.id }}, '{{ lot.lot_numero or '' }}', '{{ lot.site or '' }}', '{{ lot.date_expiration or '' }}', '{{ lot.warehouse or '' }}', '{{ lot.bloc or '' }}', '{{ lot.rangee or '' }}', {{ lot.quantite }})">
+                                        onclick="openEditLot({{ lot.id }}, '{{ lot.lot_numero or '' }}', '{{ lot.site or '' }}', '{{ lot.date_expiration or '' }}', '{{ lot.warehouse or '' }}', '{{ lot.bloc or '' }}', '{{ lot.rangee or '' }}', '{{ lot.etage or '' }}', {{ lot.quantite }})">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <form action="{{ url_for('delete_lot', lot_id=lot.id) }}" method="POST" class="d-inline">
@@ -650,9 +651,14 @@ function autoSelectTarif(sel) {
                                 <option value="">&mdash;</option>{% for i in range(1,6) %}<option value="Bloc {{ i }}">Bloc {{ i }}</option>{% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-4"><label class="form-label fw-bold">Rang&eacute;e</label>
+                        <div class="col-md-3"><label class="form-label fw-bold">Rang&eacute;e</label>
                             <select name="rangee" class="form-select form-select-sm">
                                 <option value="">&mdash;</option>{% for i in range(1,11) %}<option value="Rang&eacute;e {{ i }}">Rang&eacute;e {{ i }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3"><label class="form-label fw-bold">&Eacute;tage</label>
+                            <select name="etage" class="form-select form-select-sm">
+                                <option value="">&mdash;</option>{% for i in range(1,11) %}<option value="Étage {{ i }}">&Eacute;tage {{ i }}</option>{% endfor %}
                             </select>
                         </div>
                     </div>
@@ -697,9 +703,14 @@ function autoSelectTarif(sel) {
                                 <option value="">&mdash;</option>{% for i in range(1,6) %}<option value="Bloc {{ i }}">Bloc {{ i }}</option>{% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-4"><label class="form-label fw-bold">Rang&eacute;e</label>
+                        <div class="col-md-3"><label class="form-label fw-bold">Rang&eacute;e</label>
                             <select name="rangee" id="editLotRangee" class="form-select form-select-sm">
                                 <option value="">&mdash;</option>{% for i in range(1,11) %}<option value="Rangée {{ i }}">Rang&eacute;e {{ i }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3"><label class="form-label fw-bold">&Eacute;tage</label>
+                            <select name="etage" id="editLotEtage" class="form-select form-select-sm">
+                                <option value="">&mdash;</option>{% for i in range(1,11) %}<option value="Étage {{ i }}">&Eacute;tage {{ i }}</option>{% endfor %}
                             </select>
                         </div>
                     </div>
@@ -752,12 +763,14 @@ if (addLotModalEl) {
 }
 
 // Open edit lot modal and fill fields
-function openEditLot(id, lotNum, site, dateExp, warehouse, bloc, rangee, qty) {
+function openEditLot(id, lotNum, site, dateExp, warehouse, bloc, rangee, etage, qty) {
     document.getElementById('editLotForm').action = '/lot/' + id + '/edit';
     document.getElementById('editLotNumero').value   = lotNum;
     document.getElementById('editLotSite').value     = site;
     document.getElementById('editLotExp').value      = dateExp;
     document.getElementById('editLotQty').value      = qty;
+    var eSel = document.getElementById('editLotEtage');
+    for (var i = 0; i < eSel.options.length; i++) { if (eSel.options[i].value === etage) { eSel.selectedIndex = i; break; } }
     var wSel = document.getElementById('editLotWarehouse');
     for (var i = 0; i < wSel.options.length; i++) { if (wSel.options[i].value === warehouse) { wSel.selectedIndex = i; break; } }
     var bSel = document.getElementById('editLotBloc');

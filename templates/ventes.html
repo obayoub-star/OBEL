@@ -204,6 +204,7 @@
         <div class="table-container">
             {% macro sort_icon(col) %}{% if sort_col == col %}{% if sort_dir == 'asc' %}<i class="fas fa-sort-up ms-1 small"></i>{% else %}<i class="fas fa-sort-down ms-1 small"></i>{% endif %}{% else %}<i class="fas fa-sort ms-1 small" style="opacity:0.4;"></i>{% endif %}{% endmacro %}
             {% macro sort_url(col) %}{{ url_for('ventes', type_doc=td, search=search_query, statut=statut_filtre, sort=col, dir='asc' if (sort_col == col and sort_dir == 'desc') else 'desc') }}{% endmacro %}
+            <div class="table-scroll">
             <table class="table align-middle mb-0 table-hover" id="ventesTable">
                 <thead>
                     <tr>
@@ -215,8 +216,12 @@
                         <th data-col="ttc"><a href="{{ sort_url('ttc') }}" class="text-white text-decoration-none">Montant TTC {{ sort_icon('ttc') }}</a></th>
                         <th data-col="statut"><a href="{{ sort_url('statut') }}" class="text-white text-decoration-none">Statut {{ sort_icon('statut') }}</a></th>
                         <th data-col="objet"><a href="{{ sort_url('objet') }}" class="text-white text-decoration-none">Objet {{ sort_icon('objet') }}</a></th>
+                        {% if td == 'Facture' %}
+                        <th data-col="devis_lie" class="text-center">Devis</th>
+                        <th data-col="avoir_lie" class="text-center">Avoir</th>
                         <th data-col="bon_de_travail" class="text-center">Bon de travail</th>
                         <th data-col="bon_de_livraison" class="text-center">Bon de Livraison</th>
+                        {% endif %}
                         <th class="text-end pe-4">Options</th>
                     </tr>
                 </thead>
@@ -244,12 +249,16 @@
                             {% endif %}
                         </td>
                         <td data-col="objet" style="color:var(--text-tertiary); font-size:0.84rem;">{{ f.objet or '' }}</td>
-                        <td data-col="bon_de_travail" class="text-center" onclick="event.stopPropagation()">
-                            {% if f.devis_ref %}<span class="badge bg-info text-white" style="font-size:0.72rem;">{{ f.devis_ref }}</span>{% else %}{% endif %}
+                        {% if td == 'Facture' %}
+                        <td data-col="devis_lie" class="text-center" onclick="event.stopPropagation()">
+                            {% if f.devis_ref %}<span class="badge bg-info text-white" style="font-size:0.72rem;">{{ f.devis_ref }}</span>{% endif %}
                         </td>
-                        <td data-col="bon_de_livraison" class="text-center" onclick="event.stopPropagation()">
-                            
+                        <td data-col="avoir_lie" class="text-center" onclick="event.stopPropagation()">
+                            {% if f.avoir_ref %}<span class="badge bg-warning text-dark" style="font-size:0.72rem;">{{ f.avoir_ref }}</span>{% endif %}
                         </td>
+                        <td data-col="bon_de_travail" class="text-center" onclick="event.stopPropagation()"></td>
+                        <td data-col="bon_de_livraison" class="text-center" onclick="event.stopPropagation()"></td>
+                        {% endif %}
                         <td class="text-end pe-4" onclick="event.stopPropagation()">
                             <a href="{{ url_for('edit_facture', id=f.id) }}"
                                class="btn btn-sm btn-outline-primary me-1" style="border-radius:var(--radius-sm); border-color:var(--border); color:var(--primary);" title="&Eacute;diter">
@@ -270,7 +279,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="11" class="empty-state">
+                        <td colspan="{% if td == 'Facture' %}13{% else %}9{% endif %}" class="empty-state">
                             <i class="fas fa-file-invoice"></i>
                             Aucun document trouv&eacute;.
                         </td>
@@ -278,6 +287,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
 
         <div class="mt-3" style="color:var(--text-tertiary); font-size:0.8rem; font-weight:500;">
@@ -323,15 +333,19 @@ document.querySelectorAll('tr[data-href]').forEach(function(row) {
 // ── Champs column toggle ─────────────────────────────────────────────────────
 var CHAMPS_KEY = 'ventes_cols_{{ td }}';
 var COL_LABELS = {
-    'numero':           'Numéro',
-    'date':             'Date',
-    'client':           'Client',
-    'ht':               'Montant HT',
-    'ttc':              'Montant TTC',
-    'statut':           'Statut',
-    'objet':            'Objet',
-    'bon_de_travail':   'Bon de travail',
-    'bon_de_livraison': 'Bon de Livraison'
+    'numero':  'Numéro',
+    'date':    'Date',
+    'client':  'Client',
+    'ht':      'Montant HT',
+    'ttc':     'Montant TTC',
+    'statut':  'Statut',
+    'objet':   'Objet'
+    {% if td == 'Facture' %}
+    ,'devis_lie':        'Devis'
+    ,'avoir_lie':        'Avoir'
+    ,'bon_de_travail':   'Bon de travail'
+    ,'bon_de_livraison': 'Bon de Livraison'
+    {% endif %}
 };
 
 function getHiddenCols() {

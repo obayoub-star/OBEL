@@ -171,7 +171,7 @@
             </div>
             {% if not is_bt %}
             <div class="meta-row">
-                <span style="color:#9CAABB; font-size:8pt;">{% if is_bl %}Verval datum :{% else %}&Eacute;ch&eacute;ance :{% endif %}</span>
+                <span style="color:#9CAABB; font-size:8pt;">&Eacute;ch&eacute;ance :</span>
                 <strong>{{ facture.date_echeance or '' }}</strong>
             </div>
             {% endif %}
@@ -251,7 +251,7 @@
                 <th class="num">Unitaire</th>
                 <th class="num">TVA</th>
                 <th class="num">Total</th>
-                {% if is_bl %}<th>Verval datum</th>{% endif %}
+                {% if is_bl %}<th>Date d'&eacute;ch&eacute;ance</th>{% endif %}
                 {% endif %}
             </tr>
         </thead>

@@ -67,7 +67,7 @@
         </div>
         {% if doc.date_echeance %}
         <div class="meta-item">
-            <div class="lbl">{% if doc.type_document == 'Bon de livraison' %}Verval datum{% else %}Échéance{% endif %}</div>
+            <div class="lbl">Date d'échéance</div>
             <div class="val">{{ doc.date_echeance }}</div>
         </div>
         {% endif %}
@@ -110,7 +110,7 @@
                     <th style="text-align:right;">Total HT</th>
                     {% endif %}
                     {% if doc.type_document == 'Bon de livraison' %}
-                    <th>Verval datum</th>
+                    <th>Date d'échéance</th>
                     {% endif %}
                 </tr>
             </thead>

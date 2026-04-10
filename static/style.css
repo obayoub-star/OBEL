@@ -409,6 +409,20 @@ body.sidebar-collapsed .main-content {
     animation:      fadeInUp 0.5s var(--ease) both;
     animation-delay: 0.15s;
 }
+.table-container .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.table-container .table-scroll::-webkit-scrollbar {
+    height: 6px;
+}
+.table-container .table-scroll::-webkit-scrollbar-track {
+    background: var(--bg);
+}
+.table-container .table-scroll::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 999px;
+}
 .table-container thead th {
     background-color: var(--sidebar-bg) !important;
     color:            rgba(255,255,255,0.9) !important;

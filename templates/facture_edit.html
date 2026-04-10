@@ -256,7 +256,7 @@
                             </div>
                             {% if not is_bt %}
                             <div class="col-6">
-                                <span style="color:var(--text-tertiary); font-size:0.72rem;">&Eacute;ch&eacute;ance / Verval datum</span>
+                                <span style="color:var(--text-tertiary); font-size:0.72rem;">{% if doc_type == 'Bon de livraison' %}Date d'&eacute;ch&eacute;ance{% else %}&Eacute;ch&eacute;ance{% endif %}</span>
                                 <div style="font-weight:600; font-size:0.88rem;">{{ facture.date_echeance or '' }}</div>
                             </div>
                             <div class="col-6">
@@ -305,16 +305,22 @@
                     <input type="hidden" name="produit_id" id="produitId" value="">
                     <div class="row g-2 align-items-end">
                         <!-- Ref -->
-                        <div class="col-md-2">
+                        <div class="col-md-2" style="position:relative;">
                             <label class="form-label">R&eacute;f</label>
                             <input type="text" name="reference" id="articleRef" class="form-control form-control-sm"
-                                   placeholder="R&eacute;f" onblur="lookupByRef(this.value)">
+                                   placeholder="R&eacute;f" autocomplete="off">
+                            <div id="refSuggestions"
+                                 style="position:absolute; top:100%; left:0; right:0; z-index:1001;
+                                        background:#fff; border:1px solid var(--border);
+                                        border-radius:0 0 var(--radius-sm) var(--radius-sm);
+                                        max-height:220px; overflow-y:auto; display:none;
+                                        box-shadow:var(--shadow-md);"></div>
                         </div>
-                        <!-- Naam (voor USP) — dient als zoekbalk met live dropdown -->
+                        <!-- Nom produit — search dropdown -->
                         <div class="col-md-3" style="position:relative;">
-                            <label class="form-label">Naam</label>
+                            <label class="form-label">Nom</label>
                             <input type="text" id="produitSearch" class="form-control form-control-sm"
-                                   placeholder="Typ naam of ref..." autocomplete="off">
+                                   placeholder="Rechercher produit..." autocomplete="off">
                             <div id="produitSuggestions"
                                  style="position:absolute; top:100%; left:0; right:0; z-index:1000;
                                         background:#fff; border:1px solid var(--border);
@@ -352,23 +358,25 @@
                         <input type="hidden" name="tva" value="0">
                         <input type="hidden" name="remise" value="0">
                         {% else %}
-                        <!-- Devis/Facture/BL/Avoir: price columns -->
-                        <div class="col-md-2">
-                            <label class="form-label">Unitaire</label>
-                            <input type="number" name="prix_unitaire" id="articlePrix" class="form-control form-control-sm"
-                                   value="0" step="any" readonly style="background:var(--bg); color:var(--text-secondary);" onchange="calcMontant()">
-                        </div>
-                        <div class="col-md-1">
-                            <label class="form-label">TVA %</label>
-                            <input type="number" name="tva" id="articleTva" class="form-control form-control-sm"
-                                   value="20" step="0.1">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Total</label>
-                            <input type="text" id="articleMontant" class="form-control form-control-sm"
-                                   style="background:var(--bg);" readonly placeholder="0.00">
-                        </div>
+                        <!-- Prix unitaire: 3 tariff buttons -->
+                        <input type="hidden" name="prix_unitaire" id="articlePrix" value="0">
+                        <input type="hidden" name="tva" id="articleTva" value="20">
                         <input type="hidden" name="remise" value="0">
+                        <div class="col-md-3">
+                            <label class="form-label">Prix unitaire</label>
+                            <div class="d-flex gap-1" id="tarifButtonsAdd">
+                                <button type="button" class="btn btn-sm btn-outline-primary flex-fill" style="border-radius:var(--radius-sm); font-size:0.75rem;" onclick="setTarif('t1')" id="btnT1">
+                                    T1<br><span id="addT1Val" style="font-weight:700;">—</span>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-success flex-fill" style="border-radius:var(--radius-sm); font-size:0.75rem;" onclick="setTarif('t2')" id="btnT2">
+                                    T2<br><span id="addT2Val" style="font-weight:700;">—</span>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-warning flex-fill" style="border-radius:var(--radius-sm); font-size:0.75rem;" onclick="setTarif('t3')" id="btnT3">
+                                    T3<br><span id="addT3Val" style="font-weight:700;">—</span>
+                                </button>
+                            </div>
+                            <div style="font-size:0.72rem; color:var(--text-tertiary); margin-top:3px;" id="selectedPrixDisplay">Aucun tarif sélectionné</div>
+                        </div>
                         {% endif %}
 
                         <div class="col-md-2 d-flex gap-2">
@@ -392,7 +400,7 @@
                         <tr>
                             <th style="width:30px;"></th>
                             <th>R&eacute;f</th>
-                            <th>Naam</th>
+                            <th>Nom</th>
                             <th>Description</th>
                             {% if is_bt %}
                             <th>Lot</th>
@@ -405,7 +413,7 @@
                             <th>Unitaire</th>
                             <th>TVA</th>
                             <th>Total</th>
-                            {% if doc_type in ['Facture', 'Bon de livraison'] %}<th>Verval datum</th>{% endif %}
+                            {% if doc_type in ['Facture', 'Bon de livraison'] %}<th>Date d'&eacute;ch&eacute;ance</th>{% endif %}
                             {% endif %}
                             <th style="width:50px;"></th>
                         </tr>
@@ -694,6 +702,7 @@
             </div>
             <form id="editLigneForm" action="" method="POST">
                 <div class="modal-body">
+                    <input type="hidden" name="prix_unitaire" id="editLignePrix">
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="form-label fw-bold">Quantité</label>
@@ -701,7 +710,7 @@
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-bold">Prix unitaire</label>
-                            <input type="number" name="prix_unitaire" id="editLignePrix" class="form-control" step="0.01"{% if session.get('role') != 'admin' %} readonly style="background:var(--bg);"{% endif %}>
+                            <div id="editPrixDisplay" style="padding:10px 14px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); font-weight:700; font-size:0.95rem; color:var(--primary);">—</div>
                         </div>
                         {% if session.get('role') == 'admin' %}
                         <div class="col-12" id="tarifBtns" style="display:none;">
@@ -752,18 +761,10 @@ function toggleAddForm() {
     chevron.className  = visible ? 'fas fa-chevron-down ms-auto small' : 'fas fa-chevron-up ms-auto small';
 }
 
-// ── Naam autocomplete ──────────────────────────────────────────────────────
-var searchEl  = document.getElementById('produitSearch');
-var suggestEl = document.getElementById('produitSuggestions');
-
-if (searchEl) searchEl.addEventListener('input', function() {
-    var q = this.value.toLowerCase().trim();
-    suggestEl.innerHTML = '';
-    if (!q) { suggestEl.style.display = 'none'; return; }
-    var matches = ALL_PRODUITS.filter(function(p) {
-        return p.nom.toLowerCase().includes(q) || p.ref.toLowerCase().includes(q);
-    }).slice(0, 12);
-    if (!matches.length) { suggestEl.style.display = 'none'; return; }
+// ── Autocomplete helper ────────────────────────────────────────────────────
+function buildSuggestions(matches, containerEl) {
+    containerEl.innerHTML = '';
+    if (!matches.length) { containerEl.style.display = 'none'; return; }
     matches.forEach(function(p) {
         var div = document.createElement('div');
         div.style.cssText = 'padding:7px 12px; cursor:pointer; font-size:0.82rem; border-bottom:1px solid #eee;';
@@ -774,14 +775,65 @@ if (searchEl) searchEl.addEventListener('input', function() {
             e.preventDefault();
             fillFromProduit(p.id);
         });
-        suggestEl.appendChild(div);
+        containerEl.appendChild(div);
     });
-    suggestEl.style.display = 'block';
+    containerEl.style.display = 'block';
+}
+
+// ── Réf autocomplete ───────────────────────────────────────────────────────
+var refEl     = document.getElementById('articleRef');
+var refSugEl  = document.getElementById('refSuggestions');
+
+if (refEl) refEl.addEventListener('input', function() {
+    var q = this.value.toLowerCase().trim();
+    if (!q) { refSugEl.style.display = 'none'; return; }
+    var matches = ALL_PRODUITS.filter(function(p) {
+        return p.ref.toLowerCase().includes(q);
+    }).slice(0, 12);
+    buildSuggestions(matches, refSugEl);
+});
+
+if (refEl) refEl.addEventListener('blur', function() {
+    setTimeout(function() { refSugEl.style.display = 'none'; }, 200);
+    lookupByRef(this.value);
+});
+
+// ── Nom autocomplete ───────────────────────────────────────────────────────
+var searchEl  = document.getElementById('produitSearch');
+var suggestEl = document.getElementById('produitSuggestions');
+
+if (searchEl) searchEl.addEventListener('input', function() {
+    var q = this.value.toLowerCase().trim();
+    if (!q) { suggestEl.style.display = 'none'; return; }
+    var matches = ALL_PRODUITS.filter(function(p) {
+        return p.nom.toLowerCase().includes(q) || p.ref.toLowerCase().includes(q);
+    }).slice(0, 12);
+    buildSuggestions(matches, suggestEl);
 });
 
 if (searchEl) searchEl.addEventListener('blur', function() {
     setTimeout(function() { suggestEl.style.display = 'none'; }, 200);
 });
+
+var _addTarifs = {t1: 0, t2: 0, t3: 0, suggested: 0};
+var _selectedTarif = null;
+
+function setTarif(key) {
+    var prix = _addTarifs[key] || 0;
+    _selectedTarif = key;
+    document.getElementById('articlePrix').value = prix;
+    var labels = {t1: 'T1', t2: 'T2', t3: 'T3'};
+    var display = document.getElementById('selectedPrixDisplay');
+    if (display) display.textContent = labels[key] + ' sélectionné : ' + prix.toFixed(2) + ' dh';
+    // Highlight active button
+    ['t1','t2','t3'].forEach(function(k) {
+        var btn = document.getElementById('btn' + k.toUpperCase());
+        if (!btn) return;
+        btn.className = btn.className.replace(/btn-(outline-)?(primary|success|warning)/g, '');
+        var color = k === 't1' ? 'primary' : (k === 't2' ? 'success' : 'warning');
+        btn.className += k === key ? ' btn-' + color : ' btn-outline-' + color;
+    });
+}
 
 function fillFromProduit(produitId) {
     document.getElementById('produitId').value = produitId;
@@ -792,12 +844,27 @@ function fillFromProduit(produitId) {
             suggestEl.style.display = 'none';
             document.getElementById('articleRef').value   = data.reference || '';
             document.getElementById('articleDesig').value = data.designation || '';
-            var pEl = document.getElementById('articlePrix');
-            if (pEl) pEl.value = data.prix || 0;
             var tEl = document.getElementById('articleTva');
             if (tEl) tEl.value = data.tva || 20;
+            _addTarifs = {
+                t1: data.prix_tarif_1 || 0,
+                t2: data.prix_tarif_2 || 0,
+                t3: data.prix_tarif_3 || 0,
+                suggested: data.prix || 0
+            };
+            // Update button labels
+            var t1El = document.getElementById('addT1Val');
+            var t2El = document.getElementById('addT2Val');
+            var t3El = document.getElementById('addT3Val');
+            if (t1El) t1El.textContent = _addTarifs.t1.toFixed(2) + ' dh';
+            if (t2El) t2El.textContent = _addTarifs.t2.toFixed(2) + ' dh';
+            if (t3El) t3El.textContent = _addTarifs.t3.toFixed(2) + ' dh';
+            // Auto-select suggested tarif based on prix
+            var autoKey = 't1';
+            if (Math.abs(data.prix - _addTarifs.t2) < 0.01) autoKey = 't2';
+            else if (Math.abs(data.prix - _addTarifs.t3) < 0.01) autoKey = 't3';
+            setTarif(autoKey);
             fillLots(data.lots || []);
-            calcMontant();
         });
 }
 
@@ -811,12 +878,25 @@ function lookupByRef(ref) {
             document.getElementById('produitId').value    = data.id;
             searchEl.value = data.nom_avant || data.nom || '';
             document.getElementById('articleDesig').value = data.designation || '';
-            var pEl = document.getElementById('articlePrix');
-            if (pEl) pEl.value = data.prix || 0;
             var tEl = document.getElementById('articleTva');
             if (tEl) tEl.value = data.tva || 20;
+            _addTarifs = {
+                t1: data.prix_tarif_1 || 0,
+                t2: data.prix_tarif_2 || 0,
+                t3: data.prix_tarif_3 || 0,
+                suggested: data.prix || 0
+            };
+            var t1El = document.getElementById('addT1Val');
+            var t2El = document.getElementById('addT2Val');
+            var t3El = document.getElementById('addT3Val');
+            if (t1El) t1El.textContent = _addTarifs.t1.toFixed(2) + ' dh';
+            if (t2El) t2El.textContent = _addTarifs.t2.toFixed(2) + ' dh';
+            if (t3El) t3El.textContent = _addTarifs.t3.toFixed(2) + ' dh';
+            var autoKey = 't1';
+            if (Math.abs(data.prix - _addTarifs.t2) < 0.01) autoKey = 't2';
+            else if (Math.abs(data.prix - _addTarifs.t3) < 0.01) autoKey = 't3';
+            setTarif(autoKey);
             fillLots(data.lots || []);
-            calcMontant();
         });
 }
 
@@ -836,25 +916,32 @@ function fillLots(lots) {
     }
 }
 
-function calcMontant() {
-    var qty  = parseFloat(document.getElementById('articleQty').value) || 0;
-    var prix = parseFloat((document.getElementById('articlePrix') || {}).value) || 0;
-    var ht   = qty * prix;
-    var el   = document.getElementById('articleMontant');
-    if (el) el.value = ht.toFixed(2);
-}
-
 function resetForm() {
     document.getElementById('produitId').value     = '';
     document.getElementById('produitSearch').value = '';
     document.getElementById('articleRef').value    = '';
     document.getElementById('articleDesig').value  = '';
     document.getElementById('articleQty').value    = 1;
-    var pEl = document.getElementById('articlePrix');   if (pEl) pEl.value = 0;
-    var tEl = document.getElementById('articleTva');    if (tEl) tEl.value = 20;
-    var mEl = document.getElementById('articleMontant');if (mEl) mEl.value = '0.00';
-    document.getElementById('lotSelect').innerHTML = '<option value="">--</option>';
+    var pEl = document.getElementById('articlePrix'); if (pEl) pEl.value = 0;
+    var tEl = document.getElementById('articleTva');  if (tEl) tEl.value = 20;
+    _addTarifs = {t1: 0, t2: 0, t3: 0, suggested: 0};
+    _selectedTarif = null;
+    ['addT1Val','addT2Val','addT3Val'].forEach(function(id) {
+        var el = document.getElementById(id); if (el) el.textContent = '—';
+    });
+    var disp = document.getElementById('selectedPrixDisplay');
+    if (disp) disp.textContent = 'Aucun tarif sélectionné';
+    // Reset button styles
+    ['T1','T2','T3'].forEach(function(k, i) {
+        var btn = document.getElementById('btn'+k);
+        if (!btn) return;
+        var colors = ['primary','success','warning'];
+        btn.className = btn.className.replace(/btn-(outline-)?(primary|success|warning)\s*/g, '').trim() + ' btn-outline-' + colors[i];
+    });
+    var lotSel = document.getElementById('lotSelect');
+    if (lotSel && lotSel.tagName === 'SELECT') lotSel.innerHTML = '<option value="">--</option>';
     suggestEl.style.display = 'none';
+    if (refSugEl) refSugEl.style.display = 'none';
 }
 
 var _editTarifs = {t1: 0, t2: 0, t3: 0};
@@ -871,6 +958,7 @@ document.querySelectorAll('.edit-ligne-btn').forEach(function(btn) {
         document.getElementById('editLigneForm').action = '/facture/{{ facture.id }}/ligne/' + lid + '/edit';
         document.getElementById('editLigneQty').value   = qty;
         document.getElementById('editLignePrix').value  = prix;
+        document.getElementById('editPrixDisplay').textContent = parseFloat(prix).toFixed(2) + ' dh';
         document.getElementById('editLigneDesig').value = desig;
         // Show tarif buttons if product has tarifs
         var btns = document.getElementById('tarifBtns');
@@ -891,6 +979,20 @@ document.querySelectorAll('.edit-ligne-btn').forEach(function(btn) {
 function applyTarif(key) {
     var prix = _editTarifs[key] || 0;
     document.getElementById('editLignePrix').value = prix.toFixed(2);
+    document.getElementById('editPrixDisplay').textContent = prix.toFixed(2) + ' dh';
+    // Highlight active button
+    document.querySelectorAll('#tarifBtns button').forEach(function(b) {
+        b.classList.remove('btn-primary','btn-success','btn-warning');
+        b.classList.add(b.classList.contains('btn-outline-primary') ? 'btn-outline-primary' :
+                        b.classList.contains('btn-outline-success') ? 'btn-outline-success' : 'btn-outline-warning');
+    });
+    var map = {t1: 0, t2: 1, t3: 2};
+    var btn = document.querySelectorAll('#tarifBtns button')[map[key]];
+    if (btn) {
+        if (key === 't1') { btn.classList.remove('btn-outline-primary'); btn.classList.add('btn-primary'); }
+        else if (key === 't2') { btn.classList.remove('btn-outline-success'); btn.classList.add('btn-success'); }
+        else { btn.classList.remove('btn-outline-warning'); btn.classList.add('btn-warning'); }
+    }
 }
 
 function saveAdjust() {

@@ -65,7 +65,12 @@
                         <td style="font-size:0.82rem;">
                             {% if cl.portal_token %}
                             <div class="d-flex align-items-center gap-2">
-                                <span class="badge bg-success" style="font-size:0.68rem;"><i class="fas fa-check me-1"></i>Actif</span>
+                                <form action="{{ url_for('revoke_portal_token', id=cl.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-success fw-bold"
+                                            style="border-radius:999px; font-size:0.68rem; min-width:68px; padding:3px 10px;">
+                                        <i class="fas fa-check me-1"></i>Actif
+                                    </button>
+                                </form>
                                 <a href="{{ url_for('client_portal', token=cl.portal_token) }}" target="_blank"
                                    class="btn btn-sm btn-outline-success py-0 px-2" style="border-radius:var(--radius-sm); font-size:0.76rem;" title="Ouvrir le portail">
                                     <i class="fas fa-external-link-alt"></i>
@@ -76,17 +81,22 @@
                                 </button>
                             </div>
                             {% else %}
-                            <span class="badge bg-light text-secondary border" style="font-size:0.68rem;">Aucun lien</span>
+                            <form action="{{ url_for('generate_portal_token', id=cl.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-danger fw-bold"
+                                        style="border-radius:999px; font-size:0.68rem; min-width:68px; padding:3px 10px;">
+                                    <i class="fas fa-times me-1"></i>Désactif
+                                </button>
+                            </form>
                             {% endif %}
                         </td>
                         <td class="text-end pe-4">
+                            {% if cl.portal_token %}
                             <form action="{{ url_for('generate_portal_token', id=cl.id) }}" method="POST" class="d-inline">
-                                <button type="submit" class="btn btn-sm {% if cl.portal_token %}btn-outline-warning{% else %}btn-outline-info{% endif %}" style="border-radius:var(--radius-sm); font-size:0.78rem;"
-                                        onclick="return confirmAction('{% if cl.portal_token %}Renouveler{% else %}Créer{% endif %} le lien portail pour <strong>{{ cl.nom }}</strong> ?')">
-                                    <i class="fas fa-{% if cl.portal_token %}redo{% else %}link{% endif %} me-1"></i>
-                                    {% if cl.portal_token %}Renouveler{% else %}Créer lien{% endif %}
+                                <button type="submit" class="btn btn-sm btn-outline-warning" style="border-radius:var(--radius-sm); font-size:0.78rem;">
+                                    <i class="fas fa-redo me-1"></i>Renouveler
                                 </button>
                             </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}

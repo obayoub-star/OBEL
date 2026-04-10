@@ -795,11 +795,12 @@ def add_lot(id):
     conn = get_db_connection()
     conn.execute('''
         INSERT INTO lots (produit_id, lot_numero, site, date_production, date_expiration,
-                          warehouse, bloc, rangee, quantite)
-        VALUES (?,?,?,?,?,?,?,?,?)
+                          warehouse, bloc, rangee, etage, quantite)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
     ''', (id, request.form.get('lot_numero'), request.form.get('site'),
           request.form.get('date_production'), request.form.get('date_expiration'),
           request.form.get('warehouse'), request.form.get('bloc'), request.form.get('rangee'),
+          request.form.get('etage', ''),
           request.form.get('quantite', 0) or 0))
     conn.commit()
     conn.close()
@@ -813,7 +814,7 @@ def edit_lot(lot_id):
     lot  = conn.execute('SELECT produit_id FROM lots WHERE id=?', (lot_id,)).fetchone()
     conn.execute('''
         UPDATE lots SET lot_numero=?, site=?, date_expiration=?,
-                        warehouse=?, bloc=?, rangee=?, quantite=?
+                        warehouse=?, bloc=?, rangee=?, etage=?, quantite=?
         WHERE id=?
     ''', (
         request.form.get('lot_numero', ''),
@@ -822,6 +823,7 @@ def edit_lot(lot_id):
         request.form.get('warehouse', ''),
         request.form.get('bloc', ''),
         request.form.get('rangee', ''),
+        request.form.get('etage', ''),
         request.form.get('quantite', 0) or 0,
         lot_id,
     ))
@@ -1296,7 +1298,7 @@ def new_packet():
             new_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
             conn.close()
             return redirect(url_for('packet_detail', id=new_id))
-    produits = conn.execute('SELECT * FROM produits ORDER BY marque, nom').fetchall()
+    produits = [dict(r) for r in conn.execute('SELECT * FROM produits ORDER BY marque, nom').fetchall()]
     conn.close()
     return render_template('packet_detail.html', packet=None, items=[], produits=produits)
 
@@ -1317,7 +1319,7 @@ def packet_detail(id):
         WHERE pi.packet_id = ?
         ORDER BY p.marque, p.nom
     ''', (id,)).fetchall()
-    produits = conn.execute('SELECT * FROM produits ORDER BY marque, nom').fetchall()
+    produits = [dict(r) for r in conn.execute('SELECT * FROM produits ORDER BY marque, nom').fetchall()]
     # Compute totals
     t1 = sum((item['prix_tarif_1'] or 0) * item['quantite'] for item in items)
     t2 = round(t1 * 1.25, 4)
@@ -1436,7 +1438,15 @@ def ventes(type_doc=None):
         sort_dir = 'desc'
 
     query  = '''
-        SELECT f.*, cl.nom AS client_nom
+        SELECT f.*, cl.nom AS client_nom,
+               (SELECT GROUP_CONCAT(d.numero, ', ')
+                FROM factures d
+                WHERE d.type_document='Devis'
+                  AND (d.id = f.parent_id OR d.parent_id = f.id)) AS devis_ref,
+               (SELECT GROUP_CONCAT(a.numero, ', ')
+                FROM factures a
+                WHERE a.type_document='Avoir'
+                  AND a.parent_id = f.id) AS avoir_ref
         FROM factures f LEFT JOIN clients cl ON f.client_id = cl.id
     '''
     params, wheres = [], []
@@ -1805,6 +1815,9 @@ def api_lots_produit(produit_id):
         'lots':        [{'id': l['id'], 'lot_numero': l['lot_numero'],
                          'quantite': l['quantite'], 'warehouse': l['warehouse']} for l in lots],
         'prix':        prix,
+        'prix_tarif_1': produit['prix_tarif_1'] if produit else 0,
+        'prix_tarif_2': produit['prix_tarif_2'] if produit else 0,
+        'prix_tarif_3': produit['prix_tarif_3'] if produit else 0,
         'tva':         produit['tva'] if produit else 20,
         'nom':         nom,
         'nom_avant':   nom_avant,
@@ -1855,16 +1868,19 @@ def api_produit_by_reference():
     ).fetchall()
     conn.close()
     return jsonify({
-        'found':       True,
-        'id':          produit['id'],
-        'nom':         nom,
-        'nom_avant':   nom_avant,
-        'reference':   produit['reference'] or '',
-        'designation': designation,
-        'prix':        prix,
-        'tva':         produit['tva'] or 20,
-        'lots':        [{'id': l['id'], 'lot_numero': l['lot_numero'],
-                         'quantite': l['quantite'], 'warehouse': l['warehouse']} for l in lots],
+        'found':        True,
+        'id':           produit['id'],
+        'nom':          nom,
+        'nom_avant':    nom_avant,
+        'reference':    produit['reference'] or '',
+        'designation':  designation,
+        'prix':         prix,
+        'prix_tarif_1': produit['prix_tarif_1'] or 0,
+        'prix_tarif_2': produit['prix_tarif_2'] or 0,
+        'prix_tarif_3': produit['prix_tarif_3'] or 0,
+        'tva':          produit['tva'] or 20,
+        'lots':         [{'id': l['id'], 'lot_numero': l['lot_numero'],
+                          'quantite': l['quantite'], 'warehouse': l['warehouse']} for l in lots],
     })
 
 
@@ -2041,6 +2057,17 @@ def generate_portal_token(id):
     return redirect(url_for('client_side'))
 
 
+@app.route('/clients/<int:id>/portal-revoke', methods=['POST'])
+@login_required
+def revoke_portal_token(id):
+    conn = get_db_connection()
+    conn.execute('UPDATE clients SET portal_token=NULL WHERE id=?', (id,))
+    conn.commit()
+    conn.close()
+    flash("Lien portail désactivé.", 'warning')
+    return redirect(url_for('client_side'))
+
+
 @app.route('/portal/<token>')
 def client_portal(token):
     """Public portal — no login required, access via token."""
@@ -2068,11 +2095,11 @@ def client_portal(token):
 
     # Grand livre: factures (out) + avoirs (in)
     grand_livre = conn.execute('''
-        SELECT f.numero, f.date_facture, f.type_document,
+        SELECT f.id, f.numero, f.date_facture, f.type_document,
                f.montant_ttc, f.statut,
                CASE WHEN f.type_document='Avoir' THEN 'Entrée' ELSE 'Sortie' END AS sens
         FROM factures f
-        WHERE f.client_id=? AND f.type_document IN ('Facture','Avoir') AND f.statut != 'Annulé'
+        WHERE f.client_id=? AND f.type_document IN ('Facture','Avoir')
         ORDER BY f.date_facture DESC
     ''', (client['id'],)).fetchall()
 
